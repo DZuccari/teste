@@ -103,7 +103,6 @@ select{cursor:pointer;}
 }
 .login-hero>*,.home-hero>*,.join-hero>*{position:relative;z-index:1;}
 .login-score-grid,.info-grid{grid-template-columns:repeat(3,1fr);}
-.metric-grid{grid-template-columns:repeat(4,1fr);}
 .join-grid{grid-template-columns:minmax(0,.9fr) minmax(300px,1fr);}
 .lux-card{
   position:relative;
@@ -169,145 +168,6 @@ select{cursor:pointer;}
 .brand-chip{
   box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 8px 22px rgba(0,0,0,.10);
 }
-.section-title{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  margin:18px 0 10px;
-}
-.section-title strong{
-  font-size:12px;
-  color:#8b95a5;
-  letter-spacing:.9px;
-  text-transform:uppercase;
-}
-.section-title span{
-  font-size:11px;
-  color:#9ca3af;
-}
-.filter-rail{
-  display:flex;
-  gap:8px;
-  overflow-x:auto;
-  padding:2px 2px 10px;
-  scrollbar-width:none;
-}
-.filter-rail::-webkit-scrollbar{display:none;}
-.chip-filter{
-  white-space:nowrap;
-  border-radius:999px;
-  padding:8px 12px;
-  border:1px solid rgba(17,24,39,.08);
-  background:rgba(255,255,255,.72);
-  color:#64748b;
-  font-size:11px;
-  font-weight:900;
-  cursor:pointer;
-  box-shadow:0 6px 16px rgba(15,23,42,.05);
-}
-.chip-filter.active{
-  background:#dcfce7;
-  border-color:#86efac;
-  color:#15803d;
-}
-.podium-grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:10px;
-  align-items:end;
-}
-.podium-card{
-  border-radius:18px;
-  padding:14px 12px;
-  min-height:120px;
-  display:flex;
-  flex-direction:column;
-  justify-content:space-between;
-  position:relative;
-  overflow:hidden;
-}
-.podium-card:after{
-  content:"";
-  position:absolute;
-  width:110px;
-  height:110px;
-  right:-45px;
-  top:-45px;
-  border-radius:50%;
-  background:rgba(255,255,255,.28);
-}
-.timeline-dot{
-  width:10px;
-  height:10px;
-  border-radius:50%;
-  background:#16a34a;
-  box-shadow:0 0 0 5px rgba(22,163,74,.12);
-}
-.progress-ring{
-  width:78px;
-  height:78px;
-  border-radius:50%;
-  display:grid;
-  place-items:center;
-  background:conic-gradient(#16a34a var(--pct),#e5e7eb 0);
-  position:relative;
-}
-.progress-ring:before{
-  content:"";
-  position:absolute;
-  inset:8px;
-  background:#fff;
-  border-radius:50%;
-}
-.progress-ring span{
-  position:relative;
-  z-index:1;
-  font-size:18px;
-  font-weight:900;
-  color:#111827;
-}
-.two-col{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) minmax(280px,.72fr);
-  gap:14px;
-}
-.site-nav{
-  display:flex;
-  align-items:center;
-  gap:4px;
-}
-.site-nav button{
-  border:none;
-  background:transparent;
-  color:#111827;
-  font-size:14px;
-  padding:10px 12px;
-  border-radius:10px;
-  cursor:pointer;
-}
-.site-nav button:hover{background:#f8fafc;color:#047857;}
-.site-nav button.active{color:#047857;font-weight:800;background:#ecfdf5;}
-.site-ribbon{
-  background:#00722e;
-  color:#fff;
-  min-height:36px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:13px;
-}
-.site-ribbon strong{color:#facc15;}
-.site-ribbon span{display:inline-flex;align-items:center;gap:10px;}
-.site-ribbon i{width:4px;height:4px;border-radius:50%;background:#22c55e;display:inline-block;}
-.desktop-container{
-  width:100%;
-  max-width:1120px;
-  margin:0 auto;
-}
-.page-shell{
-  padding:28px 0 64px;
-}
 @keyframes cardIn{
   from{opacity:0;transform:translateY(8px);}
   to{opacity:1;transform:translateY(0);}
@@ -315,11 +175,9 @@ select{cursor:pointer;}
 @media (max-width:820px){
   .login-grid,.join-grid{grid-template-columns:1fr!important;}
   .login-hero{min-height:auto!important;}
-  .two-col,.podium-grid{grid-template-columns:1fr!important;}
 }
 @media (max-width:620px){
   .login-score-grid,.info-grid{grid-template-columns:1fr!important;}
-  .metric-grid{grid-template-columns:repeat(2,1fr)!important;}
 }
 @media (max-width:480px){
   .match-card{animation:none;}
@@ -561,8 +419,6 @@ function Bolao(){
   const [champInput,setChampInput]=useState('');
   const [adminChampInput,setAdminChampInput]=useState('');
   const [onlyMissing,setOnlyMissing]=useState(false);
-  const [predFilter,setPredFilter]=useState('all');
-  const [matchSearch,setMatchSearch]=useState('');
   const [reminderEnabled,setReminderEnabled]=useState(localStorage.getItem(REMINDER_STORAGE_KEY)==='1');
   const [lastReminderMatch,setLastReminderMatch]=useState('');
   const [csvImporting,setCsvImporting]=useState(false);
@@ -987,15 +843,10 @@ function Bolao(){
     a.name.localeCompare(b.name,'pt-BR')
   );
   const board=scoreBoardForMatches(matches,{includeChampion:true});
-  const rankByUid=Object.fromEntries(board.map((p,i)=>[p.uid,i+1]));
   const myPredMap=preds[me]||{};
   const savedPredCount=matches.filter(m=>myPredMap[m.id]&&myPredMap[m.id].home!=='').length;
   const lockedMatchCount=matches.filter(m=>started(m.dt)).length;
   const resultMatchCount=scoredMatches.length;
-  const openMatchCount=matches.length-lockedMatchCount;
-  const totalPossiblePreds=parts.length*matches.length;
-  const totalPredCount=parts.reduce((sum,uid)=>sum+matches.filter(m=>(preds[uid]||{})[m.id]?.home!=='').length,0);
-  const participationPct=totalPossiblePreds?Math.round(totalPredCount/totalPossiblePreds*100):0;
   const progressPct=matches.length?Math.round(savedPredCount/matches.length*100):0;
   const pendingMatches=matches
     .filter(m=>!started(m.dt)&&(!myPredMap[m.id]||myPredMap[m.id].home===''))
@@ -1005,20 +856,6 @@ function Bolao(){
   const nextMatches=matches.filter(m=>!started(m.dt)).sort((a,b)=>new Date(a.dt)-new Date(b.dt)).slice(0,4);
   const champDone=!!champPreds[me];
   const actionCount=urgentPendingAll.length+(!champDone&&!champLocked?1:0);
-  const myBoard=board.find(p=>p.uid===me);
-  const leader=board[0]||null;
-  const leaderGap=leader&&myBoard?Math.max(0,leader.pts-myBoard.pts):0;
-  const lastResultMatch=scoredMatches.slice().sort((a,b)=>new Date(b.dt)-new Date(a.dt))[0]||null;
-  const phaseStats=PHASES.map(ph=>{
-    const list=matches.filter(m=>m.ph===ph);
-    const done=list.filter(m=>m.result&&m.result.home!==''&&m.result.home!==undefined).length;
-    return {ph,total:list.length,done,pct:list.length?Math.round(done/list.length*100):0};
-  }).filter(x=>x.total>0);
-  const champChoiceCounts=Object.values(champPreds).reduce((acc,team)=>{
-    if(team) acc[team]=(acc[team]||0)+1;
-    return acc;
-  },{});
-  const topChampChoices=Object.entries(champChoiceCounts).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'pt-BR')).slice(0,5);
 
   const myStats=(()=>{
     let pts=0,exact=0,win=0,miss=0,total=0;
@@ -1032,18 +869,6 @@ function Bolao(){
     const missing=pendingMatches.length;
     return {pts,exact,win,miss,total,rank:rank||null,pct:total>0?Math.round((exact+win)/total*100):0,missing};
   })();
-  const participantStats=parts.map(uid=>{
-    const saved=matches.filter(m=>(preds[uid]||{})[m.id]?.home!=='').length;
-    return {
-      uid,
-      name:getName(uid),
-      saved,
-      missing:Math.max(0,matches.length-saved),
-      pct:matches.length?Math.round(saved/matches.length*100):0,
-      champ:!!champPreds[uid],
-      rank:rankByUid[uid]||null,
-    };
-  }).sort((a,b)=>(a.rank||9999)-(b.rank||9999)||a.name.localeCompare(b.name,'pt-BR'));
 
   useEffect(()=>{
     if(!reminderEnabled||!meReady) return;
@@ -1068,24 +893,9 @@ function Bolao(){
     return ()=>clearInterval(timer);
   },[reminderEnabled,meReady,matches,preds,me,lastReminderMatch]);
 
-  const activePredFilter=onlyMissing?'missing':predFilter;
-  const searchTerm=matchSearch.trim().toLowerCase();
-  const predictionMatches=matches.filter(m=>{
-    const myPick=(preds[me]||{})[m.id];
-    const hasPick=myPick&&myPick.home!=='';
-    const isOpen=!started(m.dt);
-    const matchesStatus=
-      activePredFilter==='missing' ? isOpen&&!hasPick :
-      activePredFilter==='saved' ? hasPick :
-      activePredFilter==='open' ? isOpen :
-      activePredFilter==='locked' ? !isOpen :
-      activePredFilter==='today' ? isToday(m.dt) :
-      activePredFilter==='results' ? !!(m.result&&m.result.home!==''&&m.result.home!==undefined) :
-      true;
-    if(!matchesStatus) return false;
-    if(!searchTerm) return true;
-    return `${m.home} ${m.away} ${m.venue||''} ${m.gr||''} ${m.ph||''}`.toLowerCase().includes(searchTerm);
-  });
+  const predictionMatches=onlyMissing
+    ? matches.filter(m=>!started(m.dt)&&(!(preds[me]||{})[m.id]||(preds[me]||{})[m.id].home===''))
+    : matches;
   const groupByDay=list=>{
     const groups=[];
     const index={};
@@ -1329,7 +1139,7 @@ function Bolao(){
             </div>
           )}
         </div>
-        <div className="metric-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
           {[{v:myStats.pts,l:'pts',c:'#fff'},{v:myStats.exact,l:'exatos',c:'#bbf7d0'},{v:myStats.win,l:'vencedor',c:'#fde68a'},{v:myStats.miss,l:'erros',c:'#fecaca'}].map(s=>(
             <div key={s.l} className="brand-chip mini-tile" style={{background:'rgba(255,255,255,.12)',borderRadius:12,padding:'10px 6px',textAlign:'center'}}>
               <div style={{fontSize:22,fontWeight:900,color:s.c,lineHeight:1}}>{s.v}</div>
@@ -1360,43 +1170,6 @@ function Bolao(){
         </button>
       </div>
 
-      <div className="two-col" style={{marginBottom:14}}>
-        <div className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:18,padding:16,boxShadow:shadow}}>
-          <div style={{fontSize:11,color:T.txt3,fontWeight:900,letterSpacing:.8,textTransform:'uppercase',marginBottom:8}}>Próxima missão</div>
-          {pendingMatches[0]?(
-            <>
-              <div style={{display:'flex',alignItems:'center',gap:12}}>
-                <div style={{fontSize:30}}>{fl(pendingMatches[0].home)}</div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:16,fontWeight:900,color:T.txt1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{pendingMatches[0].home} × {pendingMatches[0].away}</div>
-                  <div style={{fontSize:11,color:T.txt3,marginTop:3}}>{fDate(pendingMatches[0].dt)} às {fTime(pendingMatches[0].dt)} · {timeUntilShort(pendingMatches[0].dt)}</div>
-                </div>
-                <div style={{fontSize:30}}>{fl(pendingMatches[0].away)}</div>
-              </div>
-              <button className="btn-acc" style={{...btnAcc,width:'100%',marginTop:14,padding:11}} onClick={()=>{setTab('matches');setOnlyMissing(true);setPredFilter('missing');}}>
-                Palpitar agora
-              </button>
-            </>
-          ):(
-            <div style={{fontSize:13,color:T.txt2,lineHeight:1.6}}>Você não tem pendências abertas. Fica de olho nos próximos jogos e no ranking.</div>
-          )}
-        </div>
-        <div className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:18,padding:16,boxShadow:shadow,display:'flex',alignItems:'center',gap:14}}>
-          <div className="progress-ring" style={{'--pct':`${participationPct}%`}}><span>{participationPct}%</span></div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:11,color:T.txt3,fontWeight:900,letterSpacing:.8,textTransform:'uppercase',marginBottom:5}}>Energia do grupo</div>
-            <div style={{fontSize:15,fontWeight:900,color:T.txt1}}>{parts.length} participante{parts.length!==1?'s':''}</div>
-            <div style={{fontSize:11,color:T.txt2,lineHeight:1.55,marginTop:5}}>
-              {totalPredCount}/{totalPossiblePreds||0} palpites de jogos registrados no bolão.
-            </div>
-            <div style={{display:'flex',gap:6,flexWrap:'wrap',marginTop:9}}>
-              <span style={{fontSize:10,fontWeight:800,color:T.gold,background:T.goldBg,border:`1px solid ${T.border}`,borderRadius:999,padding:'4px 8px'}}>{champPredCount}/{parts.length} campeões</span>
-              <span style={{fontSize:10,fontWeight:800,color:T.accent,background:T.accentLt,border:`1px solid ${T.border}`,borderRadius:999,padding:'4px 8px'}}>{openMatchCount} jogos abertos</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Progress */}
       <div className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',marginBottom:14,boxShadow:shadow}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,marginBottom:12}}>
@@ -1409,7 +1182,7 @@ function Bolao(){
         <div style={{height:9,background:T.bg,borderRadius:999,overflow:'hidden',marginBottom:12}}>
           <div style={{height:'100%',width:`${progressPct}%`,background:'linear-gradient(90deg,#16a34a,#84cc16)',borderRadius:999}}/>
         </div>
-        <div className="metric-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
           {[
             {v:savedPredCount,l:'salvos',c:T.accent,b:T.accentLt},
             {v:myStats.missing,l:'faltando',c:myStats.missing?T.half:T.accent,b:myStats.missing?T.halfBg:T.accentLt},
@@ -1419,29 +1192,6 @@ function Bolao(){
             <div key={item.l} className="mini-tile" style={{background:item.b,borderRadius:12,padding:'9px 6px',textAlign:'center',border:`1px solid ${T.border}`}}>
               <div style={{fontSize:16,fontWeight:900,color:item.c,lineHeight:1,textTransform:'uppercase'}}>{item.v}</div>
               <div style={{fontSize:9,color:T.txt3,marginTop:4}}>{item.l}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',marginBottom:14,boxShadow:shadow}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,marginBottom:12}}>
-          <div>
-            <div style={{fontSize:14,fontWeight:900,color:T.txt1}}>Mapa da competição</div>
-            <div style={{fontSize:11,color:T.txt3,marginTop:2}}>Resultados cadastrados por fase</div>
-          </div>
-          {lastResultMatch&&<span style={{fontSize:10,fontWeight:800,color:T.gold,background:T.goldBg,border:`1px solid ${T.border}`,borderRadius:999,padding:'5px 9px'}}>último: {lastResultMatch.result.home}–{lastResultMatch.result.away}</span>}
-        </div>
-        <div style={{display:'flex',flexDirection:'column',gap:9}}>
-          {phaseStats.slice(0,5).map(item=>(
-            <div key={item.ph}>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:5}}>
-                <span style={{fontWeight:800,color:T.txt1}}>{item.ph}</span>
-                <span style={{color:T.txt3}}>{item.done}/{item.total}</span>
-              </div>
-              <div style={{height:7,background:T.bg,borderRadius:999,overflow:'hidden'}}>
-                <div style={{height:'100%',width:`${item.pct}%`,background:item.pct===100?'linear-gradient(90deg,#16a34a,#84cc16)':'linear-gradient(90deg,#86efac,#16a34a)',borderRadius:999}}/>
-              </div>
             </div>
           ))}
         </div>
@@ -1574,11 +1324,11 @@ function Bolao(){
       <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
         <div style={{flex:1}}>
           <div style={{fontSize:15,fontWeight:800,color:T.txt1}}>Seus palpites</div>
-          <div style={{fontSize:11,color:T.txt3,marginTop:2}}>{predictionMatches.length} jogo{predictionMatches.length!==1?'s':''} nesta visão</div>
+          <div style={{fontSize:11,color:T.txt3,marginTop:2}}>{predictionMatches.length} jogo{predictionMatches.length!==1?'s':''}{onlyMissing?' com palpite faltando':''}</div>
         </div>
-        <span style={{fontSize:11,fontWeight:900,color:myStats.missing?T.half:T.accent,background:myStats.missing?T.halfBg:T.accentLt,border:`1px solid ${myStats.missing?'#FCD34D':T.accentMd}`,borderRadius:999,padding:'7px 10px'}}>
-          {myStats.missing} pendente{myStats.missing!==1?'s':''}
-        </span>
+        <button className="pill" style={{padding:'7px 12px',borderRadius:14,border:`1px solid ${onlyMissing?T.half:T.border}`,fontSize:11,fontWeight:700,background:onlyMissing?T.halfBg:T.card,color:onlyMissing?T.half:T.txt3}} onClick={()=>setOnlyMissing(v=>!v)}>
+          {onlyMissing?'✓ Faltando':'Faltando'}
+        </button>
       </div>
       <div className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',boxShadow:shadow,marginBottom:14}}>
         <div style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:12}}>
@@ -1590,7 +1340,7 @@ function Bolao(){
             </div>
           </div>
         </div>
-        <div className="metric-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
+        <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
           {[
             {v:savedPredCount,l:'salvos',c:T.accent,b:T.accentLt},
             {v:myStats.missing,l:'faltando',c:myStats.missing?T.half:T.accent,b:myStats.missing?T.halfBg:T.accentLt},
@@ -1607,38 +1357,7 @@ function Bolao(){
           Sugestão prática: use o filtro <strong>Faltando</strong> quando quiser preencher rápido tudo que ainda está aberto.
         </div>
       </div>
-      <div className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'14px',boxShadow:shadow,marginBottom:14}}>
-        <input className="inp" style={{...inpSt,marginBottom:12}} placeholder="Buscar time, estádio, grupo ou fase..." value={matchSearch} onChange={e=>setMatchSearch(e.target.value)}/>
-        <div className="filter-rail">
-          {[
-            ['all',`Todos (${matches.length})`],
-            ['missing',`Faltando (${myStats.missing})`],
-            ['saved',`Salvos (${savedPredCount})`],
-            ['open',`Abertos (${openMatchCount})`],
-            ['locked',`Fechados (${lockedMatchCount})`],
-            ['today','Hoje'],
-            ['results',`Resultado (${resultMatchCount})`],
-          ].map(([k,label])=>(
-            <button key={k} className={`chip-filter ${activePredFilter===k?'active':''}`} onClick={()=>{setOnlyMissing(false);setPredFilter(k);}}>
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="metric-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
-          {[
-            ['Pendente',T.half,T.halfBg,'preencha antes do jogo'],
-            ['Salvo',T.accent,T.accentLt,'pode revisar até fechar'],
-            ['Fechado','#1D4ED8','#DBEAFE','não aceita mudança'],
-            ['Resultado',T.gold,T.goldBg,'pontuação calculada'],
-          ].map(item=>(
-            <div key={item[0]} style={{border:`1px solid ${T.border}`,background:item[2],borderRadius:12,padding:'9px 8px'}}>
-              <div style={{fontSize:11,fontWeight:900,color:item[1]}}>{item[0]}</div>
-              <div style={{fontSize:9,color:T.txt3,lineHeight:1.35,marginTop:3}}>{item[3]}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-      {predictionDayGroups.length===0&&<div style={{textAlign:'center',padding:'48px 0',color:T.txt3,fontSize:14}}>{activePredFilter==='missing'?'Nenhum palpite faltando ✓':'Nenhuma partida encontrada.'}</div>}
+      {predictionDayGroups.length===0&&<div style={{textAlign:'center',padding:'48px 0',color:T.txt3,fontSize:14}}>{onlyMissing?'Nenhum palpite faltando ✓':'Nenhuma partida encontrada.'}</div>}
       {predictionDayGroups.map((group,idx)=>{
         const missingCount=group.matches.filter(m=>!started(m.dt)&&(!(preds[me]||{})[m.id]||(preds[me]||{})[m.id].home==='')).length;
         const doneCount=group.matches.length-missingCount;
@@ -1690,45 +1409,7 @@ function Bolao(){
           Desempate: pontos → exatos → vencedores → campeão → menos erros → ordem alfabética.
         </div>
       </div>
-      {board.length>0&&(
-        <div className="podium-grid" style={{marginBottom:14}}>
-          {board.slice(0,3).map((p,i)=>{
-            const palette=i===0
-              ? {bg:'linear-gradient(135deg,#92400e,#f59e0b)',fg:'#fff',sub:'rgba(255,255,255,.75)',label:'Líder'}
-              : i===1
-                ? {bg:'linear-gradient(135deg,#334155,#94a3b8)',fg:'#fff',sub:'rgba(255,255,255,.75)',label:'Caçando'}
-                : {bg:'linear-gradient(135deg,#7c2d12,#fb923c)',fg:'#fff',sub:'rgba(255,255,255,.75)',label:'No pódio'};
-            return (
-              <div key={p.uid} className="podium-card" style={{background:palette.bg,color:palette.fg,minHeight:i===0?150:126,boxShadow:i===0?'0 18px 44px rgba(180,83,9,.24)':shadow}}>
-                <div style={{position:'relative',zIndex:1}}>
-                  <div style={{fontSize:12,fontWeight:900,letterSpacing:.8,textTransform:'uppercase',color:palette.sub}}>{i+1}º · {palette.label}</div>
-                  <div style={{fontSize:18,fontWeight:900,marginTop:8,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.name}</div>
-                  <div style={{fontSize:11,color:palette.sub,marginTop:4}}>{p.exact} exatos · {p.win} vencedores</div>
-                </div>
-                <div style={{position:'relative',zIndex:1,fontSize:32,fontWeight:900,lineHeight:1}}>{p.pts}<span style={{fontSize:11,fontWeight:800,marginLeft:3,color:palette.sub}}>pts</span></div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {myBoard&&(
-        <div className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'14px 16px',boxShadow:shadow,marginBottom:14,display:'flex',alignItems:'center',gap:12}}>
-          <div style={{width:42,height:42,borderRadius:14,background:T.accentLt,color:T.accent,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:900}}>
-            {myStats.rank?`${myStats.rank}º`:'–'}
-          </div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:13,fontWeight:900,color:T.txt1}}>Sua corrida</div>
-            <div style={{fontSize:11,color:T.txt3,lineHeight:1.45,marginTop:2}}>
-              {leaderGap===0?'Você está no topo ou empatado com o líder.':`Faltam ${leaderGap} ponto${leaderGap!==1?'s':''} para alcançar ${leader?.name||'o líder'}.`}
-            </div>
-          </div>
-          <div style={{textAlign:'right'}}>
-            <div style={{fontSize:20,fontWeight:900,color:T.txt1}}>{myBoard.pts}</div>
-            <div style={{fontSize:10,color:T.txt3}}>pontos</div>
-          </div>
-        </div>
-      )}
-      <div className="lux-card" style={{background:T.card,borderRadius:16,border:`1px solid ${T.border}`,boxShadow:shadow,overflow:'hidden',marginBottom:14}}>
+      <div style={{background:T.card,borderRadius:16,border:`1px solid ${T.border}`,boxShadow:shadow,overflow:'hidden',marginBottom:14}}>
         {board.map((p,i)=>(
           <div key={p.uid} style={{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',background:p.uid===me?'#F0FDF4':i===0?'#FFFBEB':'transparent',borderBottom:i<board.length-1?`1px solid ${T.border}`:'none'}}>
             <span style={{fontSize:18,width:28,textAlign:'center'}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}º`}</span>
@@ -1798,29 +1479,9 @@ function Bolao(){
 
   const TabRules=(
     <div style={{padding:'14px'}}>
-      <div className="lux-card" style={{background:'linear-gradient(135deg,#0f5132,#16a34a)',border:'1px solid rgba(255,255,255,.18)',borderRadius:18,padding:'18px',boxShadow:shadowMd,marginBottom:14,color:'#fff'}}>
-        <div style={{fontSize:11,fontWeight:900,letterSpacing:.9,textTransform:'uppercase',color:'rgba(255,255,255,.68)',marginBottom:6}}>Manual rápido</div>
-        <div style={{fontFamily:'\"Bebas Neue\", sans-serif',fontSize:36,letterSpacing:1.4,lineHeight:1}}>Como vencer o bolão</div>
-        <div style={{fontSize:13,lineHeight:1.6,color:'rgba(255,255,255,.76)',marginTop:8,maxWidth:620}}>
-          Palpite cedo, revise quando quiser antes do jogo e acompanhe a pontuação após os resultados. O sistema protege os palpites para ninguém ver vantagem antes da hora.
-        </div>
-      </div>
-      <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:14}}>
-        {[
-          ['1','Preencha placares','Cada jogo trava automaticamente no início.'],
-          ['2','Escolha campeão','Esse palpite trava no primeiro jogo da Copa.'],
-          ['3','Acompanhe ranking','Pontuação e comparativos aparecem com resultado.'],
-        ].map(step=>(
-          <div key={step[0]} className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:14,boxShadow:shadow}}>
-            <div style={{width:30,height:30,borderRadius:12,background:T.accentLt,color:T.accent,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:900,marginBottom:10}}>{step[0]}</div>
-            <div style={{fontSize:13,fontWeight:900,color:T.txt1}}>{step[1]}</div>
-            <div style={{fontSize:11,color:T.txt3,lineHeight:1.5,marginTop:4}}>{step[2]}</div>
-          </div>
-        ))}
-      </div>
       <div className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',boxShadow:shadow,marginBottom:12}}>
         <h3 style={{fontSize:15,color:T.txt1,marginBottom:8}}>📘 Regras do Bolão</h3>
-        <div className="metric-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:14}}>
+        <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:14}}>
           {[
             {v:'3',l:'placar exato',c:T.ok,b:T.okBg},
             {v:'1',l:'vencedor/empate',c:T.half,b:T.halfBg},
@@ -1885,23 +1546,6 @@ function Bolao(){
   // ── Admin Tab ───────────────────────────────────────────────────────────────
   const TabAdmin=!isAdmin?null:(
     <div style={{padding:'14px'}}>
-      <div className="lux-card" style={{background:'linear-gradient(135deg,#111827,#166534)',border:'1px solid rgba(255,255,255,.12)',borderRadius:18,padding:'18px',boxShadow:shadowMd,marginBottom:14,color:'#fff'}}>
-        <div style={{fontSize:11,fontWeight:900,letterSpacing:.9,textTransform:'uppercase',color:'rgba(255,255,255,.62)',marginBottom:6}}>Sala de controle</div>
-        <div style={{fontFamily:'\"Bebas Neue\", sans-serif',fontSize:34,letterSpacing:1.4,lineHeight:1}}>Admin do bolão</div>
-        <div className="metric-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginTop:14}}>
-          {[
-            [matches.length,'jogos'],
-            [resultMatchCount,'resultados'],
-            [parts.length,'participantes'],
-            [audit.length,'ações'],
-          ].map(item=>(
-            <div key={item[1]} className="brand-chip mini-tile" style={{background:'rgba(255,255,255,.11)',border:'1px solid rgba(255,255,255,.14)',borderRadius:14,padding:'10px 8px',textAlign:'center'}}>
-              <div style={{fontSize:22,fontWeight:900,lineHeight:1}}>{item[0]}</div>
-              <div style={{fontSize:9,color:'rgba(255,255,255,.68)',textTransform:'uppercase',letterSpacing:.6,marginTop:4}}>{item[1]}</div>
-            </div>
-          ))}
-        </div>
-      </div>
       <div style={{background:T.errBg,border:`1px solid #FECACA`,borderRadius:12,padding:'10px 14px',fontSize:12,color:T.err,marginBottom:18}}>⚙️ Painel Admin</div>
       <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',boxShadow:shadow,marginBottom:16}}>
         <div style={{fontSize:13,fontWeight:700,color:T.txt1,marginBottom:10}}>🏆 Definir Campeão Oficial</div>
@@ -2006,57 +1650,6 @@ function Bolao(){
         </div>
         <div style={{fontSize:11,color:T.txt3,lineHeight:1.5,marginTop:12}}>
           Regra de privacidade: placares aparecem depois que o jogo começa. O campeão aparece depois do início da Copa.
-        </div>
-      </div>
-      <div className="two-col" style={{marginBottom:14}}>
-        <div className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',boxShadow:shadow}}>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,marginBottom:12}}>
-            <div>
-              <div style={{fontSize:14,fontWeight:900,color:T.txt1}}>Participação do grupo</div>
-              <div style={{fontSize:11,color:T.txt3,marginTop:2}}>Só quem registrou nome aparece aqui.</div>
-            </div>
-            <span style={{fontSize:20,fontWeight:900,color:T.accent}}>{participationPct}%</span>
-          </div>
-          <div style={{display:'flex',flexDirection:'column',gap:9}}>
-            {participantStats.map(p=>(
-              <div key={p.uid}>
-                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5}}>
-                  <span style={{width:24,height:24,borderRadius:10,background:p.uid===me?T.accentLt:T.bg,border:`1px solid ${p.uid===me?T.accentMd:T.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:900,color:p.uid===me?T.accent:T.txt2}}>{p.rank||'–'}</span>
-                  <span style={{flex:1,fontSize:12,fontWeight:900,color:p.uid===me?T.accent:T.txt1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.name}{p.uid===me?' · você':''}</span>
-                  <span style={{fontSize:10,fontWeight:800,color:p.champ?T.gold:T.txt3,background:p.champ?T.goldBg:T.bg,border:`1px solid ${T.border}`,borderRadius:999,padding:'3px 7px'}}>{p.champ?'🏆 ok':'🏆 falta'}</span>
-                  <span style={{fontSize:11,color:T.txt3,width:40,textAlign:'right'}}>{p.saved}/{matches.length}</span>
-                </div>
-                <div style={{height:6,background:T.bg,borderRadius:999,overflow:'hidden'}}>
-                  <div style={{height:'100%',width:`${p.pct}%`,background:p.pct===100?'linear-gradient(90deg,#16a34a,#84cc16)':'linear-gradient(90deg,#f59e0b,#16a34a)',borderRadius:999}}/>
-                </div>
-              </div>
-            ))}
-            {participantStats.length===0&&<div style={{fontSize:12,color:T.txt3,textAlign:'center',padding:'12px 0'}}>Nenhum participante registrado ainda.</div>}
-          </div>
-        </div>
-        <div className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',boxShadow:shadow}}>
-          <div style={{fontSize:14,fontWeight:900,color:T.txt1}}>Mapa do campeão</div>
-          <div style={{fontSize:11,color:T.txt3,lineHeight:1.5,marginTop:3,marginBottom:12}}>
-            {champLocked?'Agora os palpites de campeão podem ser comparados.':'Antes da Copa começar, mostramos só quantas pessoas já escolheram.'}
-          </div>
-          {!champLocked&&(
-            <div style={{background:T.goldBg,border:`1px solid #FCD34D`,borderRadius:14,padding:'14px',textAlign:'center'}}>
-              <div style={{fontSize:28,fontWeight:900,color:T.gold}}>{champPredCount}/{parts.length}</div>
-              <div style={{fontSize:11,color:'#92400E',fontWeight:800}}>palpites de campeão enviados</div>
-            </div>
-          )}
-          {champLocked&&topChampChoices.length>0&&(
-            <div style={{display:'flex',flexDirection:'column',gap:8}}>
-              {topChampChoices.map(([team,count])=>(
-                <div key={team} style={{display:'flex',alignItems:'center',gap:8}}>
-                  <span style={{fontSize:18}}>{fl(team)}</span>
-                  <span style={{flex:1,fontSize:12,fontWeight:900,color:T.txt1}}>{team}</span>
-                  <span style={{fontSize:11,fontWeight:900,color:T.gold,background:T.goldBg,border:`1px solid ${T.border}`,borderRadius:999,padding:'4px 8px'}}>{count}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {champLocked&&topChampChoices.length===0&&<div style={{fontSize:12,color:T.txt3,textAlign:'center',padding:'16px 0'}}>Ninguém escolheu campeão.</div>}
         </div>
       </div>
       <details open={champLocked} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:12,boxShadow:shadow,marginBottom:10,overflow:'hidden'}}>
