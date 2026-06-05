@@ -236,6 +236,15 @@ const fl = t => FLAGS[t] || '🏳️';
 const ALL_TEAMS = Object.keys(FLAGS).sort();
 const PHASES = ['Grupos','32-avos','Oitavas','Quartas','Semis','3º Lugar','Final'];
 const GROUPS = ['A','B','C','D','E','F','G','H','I','J','K','L'];
+const BRACKET_PHASES = [
+  {key:'r32',label:'2ª Fase',short:'2ª Fase',count:32,pts:2},
+  {key:'r16',label:'Oitavas',short:'Oitavas',count:16,pts:4},
+  {key:'qf',label:'Quartas',short:'Quartas',count:8,pts:6},
+  {key:'sf',label:'Semis',short:'Semis',count:4,pts:8},
+  {key:'finalists',label:'Finalistas',short:'Finalistas',count:2,pts:14},
+];
+const emptyBracket=()=>BRACKET_PHASES.reduce((acc,phase)=>({...acc,[phase.key]:Array(phase.count).fill('')}),{});
+const emptyPodium=()=>({champ:'',vice:'',third:''});
 
 const BASE_MATCHES = [
   {id:'A1',ph:'Grupos',gr:'A',home:'México',away:'África do Sul',dt:'2026-06-11T16:00:00-03:00',venue:'Cidade do México'},
@@ -418,11 +427,20 @@ function Bolao(){
   const [audit,setAudit]=useState([]);
   const [champPreds,setChampPreds]=useState({});
   const [champWinner,setChampWinner]=useState('');
+  const [podiumPreds,setPodiumPreds]=useState({});
+  const [bracketPreds,setBracketPreds]=useState({});
+  const [officialPodium,setOfficialPodium]=useState(emptyPodium());
+  const [officialBracket,setOfficialBracket]=useState(emptyBracket());
   const [pi,setPi]=useState({});        // local prediction inputs
   const [ri,setRi]=useState({});        // local result inputs (admin)
   const [champInput,setChampInput]=useState('');
+  const [podiumInput,setPodiumInput]=useState(emptyPodium());
+  const [bracketInput,setBracketInput]=useState(emptyBracket());
   const [adminChampInput,setAdminChampInput]=useState('');
+  const [officialPodiumInput,setOfficialPodiumInput]=useState(emptyPodium());
+  const [officialBracketInput,setOfficialBracketInput]=useState(emptyBracket());
   const [onlyMissing,setOnlyMissing]=useState(false);
+  const [matchView,setMatchView]=useState('groups');
   const [reminderEnabled,setReminderEnabled]=useState(localStorage.getItem(REMINDER_STORAGE_KEY)==='1');
   const [lastReminderMatch,setLastReminderMatch]=useState('');
   const [csvImporting,setCsvImporting]=useState(false);
@@ -436,6 +454,12 @@ function Bolao(){
   const champLocked = champLockDt ? started(champLockDt) : false;
   const champLockLabel = champLockDt ? `${fDate(champLockDt)} às ${fTime(champLockDt)}` : 'início do primeiro jogo';
   const matchLocked=m=>m?.ph==='Grupos'?champLocked:started(m?.dt);
+  const normalizeBracket=obj=>BRACKET_PHASES.reduce((acc,phase)=>{
+    const arr=Array.isArray(obj?.[phase.key])?obj[phase.key]:[];
+    acc[phase.key]=Array.from({length:phase.count},(_,i)=>arr[i]||'');
+    return acc;
+  },{});
+  const normalizePodium=obj=>({...emptyPodium(),...(obj||{})});
 
   const showToast=(msg,ok=true)=>{setToast({msg,ok});setTimeout(()=>setToast({msg:'',ok:true}),2600);};
   const getName = uid => partMeta[uid]?.name || 'Sem nome';
@@ -462,6 +486,10 @@ function Bolao(){
         setAdminIds({});
         setChampPreds({});
         setChampWinner('');
+        setPodiumPreds({});
+        setBracketPreds({});
+        setOfficialPodium(emptyPodium());
+        setOfficialBracket(emptyBracket());
         setAudit([]);
         setBoot(false);
       }
@@ -497,6 +525,10 @@ function Bolao(){
     const adminsRef = ref('admins');
     const champRef = ref('champPreds');
     const champWinnerRef = ref('champWinner');
+    const podiumRef = ref('podiumPreds');
+    const bracketRef = ref('bracketPreds');
+    const officialPodiumRef = ref('officialPodium');
+    const officialBracketRef = ref('officialBracket');
     const auditQuery = ref('audit').limitToLast(30);
 
     const matchesUnsub = matchesRef.on('value', snap=>{
@@ -553,6 +585,32 @@ function Bolao(){
       setChampWinner(snap.val()||'');
     }, err=>onReadError(err,'champWinner.on'));
 
+    const podiumUnsub = podiumRef.on('value', snap=>{
+      if(!live) return;
+      setPodiumPreds(snap.val()||{});
+    }, err=>onReadError(err,'podiumPreds.on'));
+
+    const bracketUnsub = bracketRef.on('value', snap=>{
+      if(!live) return;
+      setBracketPreds(snap.val()||{});
+    }, err=>onReadError(err,'bracketPreds.on'));
+
+    const officialPodiumUnsub = officialPodiumRef.on('value', snap=>{
+      if(!live) return;
+      const val=snap.val()||emptyPodium();
+      setOfficialPodium({...emptyPodium(),...val});
+      setOfficialPodiumInput({...emptyPodium(),...val});
+      if(val.champ) setAdminChampInput(val.champ);
+    }, err=>onReadError(err,'officialPodium.on'));
+
+    const officialBracketUnsub = officialBracketRef.on('value', snap=>{
+      if(!live) return;
+      const val=snap.val()||emptyBracket();
+      const normalized=normalizeBracket(val);
+      setOfficialBracket(normalized);
+      setOfficialBracketInput(normalized);
+    }, err=>onReadError(err,'officialBracket.on'));
+
     return ()=>{
       live=false;
       matchesRef.off('value', matchesUnsub);
@@ -562,6 +620,10 @@ function Bolao(){
       auditQuery.off('value', auditUnsub);
       champRef.off('value', champUnsub);
       champWinnerRef.off('value', champWinUnsub);
+      podiumRef.off('value', podiumUnsub);
+      bracketRef.off('value', bracketUnsub);
+      officialPodiumRef.off('value', officialPodiumUnsub);
+      officialBracketRef.off('value', officialBracketUnsub);
     };
   },[authReady, me, isAdmin]);
 
@@ -572,7 +634,9 @@ function Bolao(){
     matches.forEach(m=>{piInit[m.id]=(preds[me]||{})[m.id]||{home:'',away:''};});
     setPi(piInit);
     setChampInput(champPreds[me]||'');
-  },[me, matches, preds[me], champPreds[me]]);
+    setPodiumInput(normalizePodium(podiumPreds[me]||{champ:champPreds[me]||'',vice:'',third:''}));
+    setBracketInput(normalizeBracket(bracketPreds[me]||{}));
+  },[me, matches, preds[me], champPreds[me], podiumPreds[me], bracketPreds[me]]);
 
   useEffect(()=>{
     if(me) setChampInput(champPreds[me]||'');
@@ -608,6 +672,8 @@ function Bolao(){
       if(legacyId){
         if(!preds[me]&&preds[legacyId]) await ref('predictions/'+me).set(preds[legacyId]);
         if(!champPreds[me]&&champPreds[legacyId]) await ref('champPreds/'+me).set(champPreds[legacyId]);
+        if(!podiumPreds[me]&&podiumPreds[legacyId]) await ref('podiumPreds/'+me).set(podiumPreds[legacyId]);
+        if(!bracketPreds[me]&&bracketPreds[legacyId]) await ref('bracketPreds/'+me).set(bracketPreds[legacyId]);
       }
       setMeName(raw);
       setPartMeta(prev=>({...prev,[me]:{name:raw,email:meEmail||''}}));
@@ -620,6 +686,8 @@ function Bolao(){
     matches.forEach(m=>{piInit[m.id]=(preds[me]||{})[m.id]||{home:'',away:''};});
     setPi(piInit);
     setChampInput(champPreds[me]||'');
+    setPodiumInput(normalizePodium(podiumPreds[me]||{champ:champPreds[me]||'',vice:'',third:''}));
+    setBracketInput(normalizeBracket(bracketPreds[me]||{}));
   };
 
   const signInGoogle=async()=>{
@@ -711,9 +779,44 @@ function Bolao(){
     if(!champInput) return;
     try{
       await ref('champPreds/'+me).set(champInput);
+      await ref('podiumPreds/'+me).update({champ:champInput});
       showToast(`Campeão salvo: ${champInput}!`);
     }catch{
       showToast('Erro ao salvar campeão.',false);
+    }
+  };
+
+  const savePodium=async()=>{
+    if(champLocked){showToast('Pódio bloqueado após o início da Copa.',false);return;}
+    const data=normalizePodium(podiumInput);
+    if(!data.champ||!data.vice||!data.third){showToast('Preencha campeão, vice e 3º lugar.',false);return;}
+    if(new Set([data.champ,data.vice,data.third]).size<3){showToast('Pódio precisa ter três seleções diferentes.',false);return;}
+    setSaving('podium');
+    try{
+      await ref('podiumPreds/'+me).set(data);
+      await ref('champPreds/'+me).set(data.champ);
+      setChampInput(data.champ);
+      showToast('Pódio salvo!');
+    }catch{
+      showToast('Erro ao salvar pódio.',false);
+    }finally{
+      setSaving(null);
+    }
+  };
+
+  const saveBracket=async()=>{
+    if(champLocked){showToast('Chaveamento bloqueado após o início da Copa.',false);return;}
+    const data=normalizeBracket(bracketInput);
+    const incomplete=BRACKET_PHASES.find(phase=>data[phase.key].filter(Boolean).length<phase.count);
+    if(incomplete){showToast(`Preencha todos os classificados: ${incomplete.label}.`,false);return;}
+    setSaving('bracket');
+    try{
+      await ref('bracketPreds/'+me).set(data);
+      showToast('Chaveamento salvo!');
+    }catch{
+      showToast('Erro ao salvar chaveamento.',false);
+    }finally{
+      setSaving(null);
     }
   };
   const saveResult=async(id)=>{
@@ -734,10 +837,44 @@ function Bolao(){
     if(!adminChampInput){showToast('Selecione o campeão oficial.',false);return;}
     try{
       await ref('champWinner').set(adminChampInput);
+      await ref('officialPodium').update({champ:adminChampInput});
       await logAdminAction('set_champion',{team:adminChampInput});
       showToast('Campeão oficial definido!');
     }catch{
       showToast('Erro ao salvar campeão oficial.',false);
+    }
+  };
+
+  const saveOfficialPodium=async()=>{
+    if(!isAdmin){showToast('Ação permitida só para admin.',false);return;}
+    const data=normalizePodium(officialPodiumInput);
+    if(!data.champ||!data.vice||!data.third){showToast('Preencha campeão, vice e 3º oficial.',false);return;}
+    if(new Set([data.champ,data.vice,data.third]).size<3){showToast('Pódio oficial precisa ter três times diferentes.',false);return;}
+    setSaving('officialPodium');
+    try{
+      await ref('officialPodium').set(data);
+      await ref('champWinner').set(data.champ);
+      await logAdminAction('set_official_podium',data);
+      showToast('Pódio oficial salvo!');
+    }catch{
+      showToast('Erro ao salvar pódio oficial.',false);
+    }finally{
+      setSaving(null);
+    }
+  };
+
+  const saveOfficialBracket=async()=>{
+    if(!isAdmin){showToast('Ação permitida só para admin.',false);return;}
+    const data=normalizeBracket(officialBracketInput);
+    setSaving('officialBracket');
+    try{
+      await ref('officialBracket').set(data);
+      await logAdminAction('set_official_bracket',{filled:BRACKET_PHASES.reduce((acc,p)=>({...acc,[p.key]:data[p.key].filter(Boolean).length}),{})});
+      showToast('Classificados oficiais salvos!');
+    }catch{
+      showToast('Erro ao salvar classificados oficiais.',false);
+    }finally{
+      setSaving(null);
     }
   };
   const removeParticipant=async(uid)=>{
@@ -749,6 +886,8 @@ function Bolao(){
       await ref('participants/'+uid).remove();
       await ref('predictions/'+uid).remove();
       await ref('champPreds/'+uid).remove();
+      await ref('podiumPreds/'+uid).remove();
+      await ref('bracketPreds/'+uid).remove();
       await logAdminAction('remove_participant',{uid,name:label});
       showToast(`${label} removido.`);
     }catch{
@@ -862,19 +1001,49 @@ function Bolao(){
 
   // ── Computed ────────────────────────────────────────────────────────────────
   const scoredMatches=matches.filter(m=>m.result&&m.result.home!==''&&m.result.home!==undefined);
+  const uniqueFilled=arr=>[...new Set((arr||[]).filter(Boolean))];
+  const bracketScoreFor=uid=>{
+    const pred=normalizeBracket(bracketPreds[uid]||{});
+    const phaseScores={};
+    let total=0,filled=0,possible=0;
+    BRACKET_PHASES.forEach(phase=>{
+      const official=uniqueFilled(officialBracket[phase.key]);
+      const picks=uniqueFilled(pred[phase.key]);
+      const hits=picks.filter(team=>official.includes(team)).length;
+      const pts=official.length?hits*phase.pts:0;
+      phaseScores[phase.key]={hits,pts,filled:picks.length,total:phase.count};
+      total+=pts; filled+=picks.length; possible+=phase.count;
+    });
+    return {total,filled,possible,phaseScores};
+  };
+  const podiumFor=uid=>normalizePodium(podiumPreds[uid]||{champ:champPreds[uid]||'',vice:'',third:''});
+  const podiumScoreFor=uid=>{
+    const pred=podiumFor(uid);
+    const official={...normalizePodium(officialPodium),champ:officialPodium.champ||champWinner};
+    const champHit=!!official.champ&&pred.champ===official.champ;
+    const viceHit=!!official.vice&&pred.vice===official.vice;
+    const thirdHit=!!official.third&&pred.third===official.third;
+    const total=(champHit?CHAMP_PTS:0)+(viceHit?VICE_PTS:0)+(thirdHit?THIRD_PTS:0);
+    return {total,champHit,viceHit,thirdHit,filled:[pred.champ,pred.vice,pred.third].filter(Boolean).length};
+  };
   const scoreBoardForMatches=(scopeMatches,{includeChampion=false}={})=>[...parts].map(uid=>{
     const name=getName(uid);
-    let pts=0,exact=0,win=0,miss=0,total=0;
+    let gamePts=0,groupPts=0,elimPts=0,exact=0,win=0,miss=0,total=0;
     scopeMatches.forEach(m=>{
       const p=(preds[uid]||{})[m.id]; if(!p) return;
       const x=calcPts(p,m.result); if(x===null) return;
-      total++;pts+=x;if(x===7)exact++;else if(x===4||x===3)win++;else miss++;
+      total++;gamePts+=x;if(m.ph==='Grupos') groupPts+=x; else elimPts+=x;
+      if(x===7)exact++;else if(x===4||x===3)win++;else miss++;
     });
-    const champHit = includeChampion&&champWinner&&champPreds[uid]===champWinner;
-    if(champHit) pts+=CHAMP_PTS;
-    return {uid,name,pts,exact,win,miss,total,champHit:champHit?1:0};
+    const bracket=includeChampion?bracketScoreFor(uid):{total:0,filled:0,possible:0,phaseScores:{}};
+    const podium=includeChampion?podiumScoreFor(uid):{total:0,champHit:false,viceHit:false,thirdHit:false,filled:0};
+    const pts=gamePts+bracket.total+podium.total;
+    return {uid,name,pts,gamePts,groupPts,elimPts,classifiedPts:bracket.total,podiumPts:podium.total,exact,win,miss,total,bracket,podium,champHit:podium.champHit?1:0};
   }).sort((a,b)=>
     b.pts-a.pts ||
+    b.gamePts-a.gamePts ||
+    b.classifiedPts-a.classifiedPts ||
+    b.podiumPts-a.podiumPts ||
     b.exact-a.exact ||
     b.win-a.win ||
     b.champHit-a.champHit ||
@@ -894,7 +1063,17 @@ function Bolao(){
   const urgentPending=urgentPendingAll.slice(0,4);
   const nextMatches=matches.filter(m=>!started(m.dt)).sort((a,b)=>new Date(a.dt)-new Date(b.dt)).slice(0,4);
   const champDone=!!champPreds[me];
-  const actionCount=urgentPendingAll.length+(!champDone&&!champLocked?1:0);
+  const groupMatches=matches.filter(m=>m.ph==='Grupos');
+  const savedGroupPredCount=groupMatches.filter(m=>myPredMap[m.id]&&myPredMap[m.id].home!=='').length;
+  const bracketMine=normalizeBracket(bracketPreds[me]||{});
+  const bracketFilled=BRACKET_PHASES.reduce((sum,phase)=>sum+bracketMine[phase.key].filter(Boolean).length,0);
+  const bracketTotal=BRACKET_PHASES.reduce((sum,phase)=>sum+phase.count,0);
+  const bracketDone=bracketFilled>=bracketTotal;
+  const podiumMine=podiumFor(me);
+  const podiumFilled=[podiumMine.champ,podiumMine.vice,podiumMine.third].filter(Boolean).length;
+  const podiumDone=podiumFilled===3;
+  const stageDoneCount=(savedGroupPredCount===groupMatches.length&&groupMatches.length?1:0)+(bracketDone?1:0)+(podiumDone?1:0);
+  const actionCount=urgentPendingAll.length+((!bracketDone||!podiumDone)&&!champLocked?1:0);
 
   const myStats=(()=>{
     let pts=0,exact=0,win=0,miss=0,total=0;
@@ -903,7 +1082,8 @@ function Bolao(){
       const x=calcPts(p,m.result); if(x===null) return;
       total++;pts+=x;if(x===7)exact++;else if(x===4||x===3)win++;else miss++;
     });
-    if(champWinner&&champPreds[me]===champWinner) pts+=CHAMP_PTS;
+    const mine=board.find(p=>p.uid===me);
+    if(mine){pts=mine.pts;exact=mine.exact;win=mine.win;miss=mine.miss;total=mine.total;}
     const rank=board.findIndex(p=>p.uid===me)+1;
     const missing=pendingMatches.length;
     return {pts,exact,win,miss,total,rank:rank||null,pct:total>0?Math.round((exact+win)/total*100):0,missing};
@@ -1192,25 +1372,23 @@ function Bolao(){
 
   // ── Home Tab ────────────────────────────────────────────────────────────────
   const TabHome=(
-    <div style={{padding:'24px 14px 72px',maxWidth:760,margin:'0 auto'}}>
+    <div style={{padding:'28px 14px 72px',maxWidth:760,margin:'0 auto'}}>
       <div style={{fontSize:13,color:T.txt3,marginBottom:6}}>{new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}</div>
       <h1 style={{fontSize:30,lineHeight:1.1,color:T.txt1,letterSpacing:-.8,marginBottom:8}}>Olá, {meName||'amigo'}! 👋</h1>
       <p style={{fontSize:15,color:T.txt2,marginBottom:28}}>Acompanhe o que falta antes de torcer.</p>
-
       <div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:T.txt3,marginBottom:8}}>
-        <span>{(champDone?1:0)+(savedPredCount===matches.length&&matches.length?1:0)} de 3 etapas concluídas</span>
-        <span>{Math.round(((champDone?1:0)+(savedPredCount===matches.length&&matches.length?1:0))/3*100)}%</span>
+        <span>{stageDoneCount} de 3 etapas concluídas</span>
+        <span>{Math.round(stageDoneCount/3*100)}%</span>
       </div>
       <div style={{height:8,background:'#F1F5F9',borderRadius:999,overflow:'hidden',marginBottom:28}}>
-        <div style={{height:'100%',width:`${Math.round(((champDone?1:0)+(savedPredCount===matches.length&&matches.length?1:0))/3*100)}%`,background:'#009C3B',borderRadius:999}}/>
+        <div style={{height:'100%',width:`${Math.round(stageDoneCount/3*100)}%`,background:'#009C3B',borderRadius:999}}/>
       </div>
-
       {[
-        {title:'Palpites da Fase de Grupos',tag:myStats.missing===0?'Concluído':'Pendente',text:'Palpite o placar de todos os jogos da fase de grupos',meta:`${savedPredCount} de ${matches.length} jogos preenchidos`,ok:myStats.missing===0,disabled:false,action:()=>{setTab('matches');setOnlyMissing(myStats.missing>0);}},
-        {title:'Chaveamento e Campeão',tag:champDone?'Concluído':'Pendente',text:'Preveja classificados e escolha quem levanta a taça',meta:champDone?'Campeão preenchido':`Pendente até ${champLockLabel}`,ok:champDone,disabled:champLocked&&!champDone,action:()=>setTab('general')},
-        {title:'Palpites das Eliminatórias',tag:'Ainda não disponível',text:'Disponível após o fim da fase de grupos',meta:'Aguarde a classificação oficial',ok:false,disabled:true,action:()=>{}},
+        {title:'Palpites da Fase de Grupos',tag:savedGroupPredCount===groupMatches.length&&groupMatches.length?'Concluído':'Pendente',text:'Palpite o placar dos 72 jogos da fase de grupos',meta:`${savedGroupPredCount} de ${groupMatches.length} jogos preenchidos`,ok:savedGroupPredCount===groupMatches.length&&groupMatches.length,disabled:false,action:()=>{setTab('matches');setMatchView('groups');setOnlyMissing(myStats.missing>0);}},
+        {title:'Chaveamento e Pódio',tag:bracketDone&&podiumDone?'Concluído':'Pendente',text:'Preveja classificados de cada fase, campeão, vice e 3º',meta:`Classificados: ${bracketFilled}/${bracketTotal} · Pódio: ${podiumFilled}/3`,ok:bracketDone&&podiumDone,disabled:champLocked&&(!bracketDone||!podiumDone),action:()=>setTab('general')},
+        {title:'Palpites das Eliminatórias',tag:'Liberado por fase',text:'Placares abrem progressivamente ao longo do mata-mata',meta:'Cada fase trava no início do primeiro jogo dela',ok:false,disabled:false,action:()=>{setTab('matches');setMatchView('knockout');}},
       ].map(item=>(
-        <button key={item.title} onClick={item.action} disabled={item.disabled} style={{width:'100%',display:'flex',alignItems:'center',gap:18,textAlign:'left',padding:'20px 22px',marginBottom:12,borderRadius:14,border:`1px solid ${item.disabled?T.border:item.ok?T.accentMd:'#FCD34D'}`,background:item.disabled?'#FFFFFF':item.ok?'#F0FDF4':'#FFFBEB',opacity:item.disabled?.68:1,cursor:item.disabled?'default':'pointer',boxShadow:'0 1px 2px rgba(15,23,42,.04)'}}>
+        <button key={item.title} onClick={item.action} disabled={item.disabled} style={{width:'100%',display:'flex',alignItems:'center',gap:18,textAlign:'left',padding:'20px 22px',marginBottom:12,borderRadius:14,border:'1px solid '+(item.disabled?T.border:item.ok?T.accentMd:'#FCD34D'),background:item.disabled?'#FFFFFF':item.ok?'#F0FDF4':'#FFFBEB',opacity:item.disabled?.68:1,cursor:item.disabled?'default':'pointer',boxShadow:'0 1px 2px rgba(15,23,42,.04)'}}>
           <span style={{width:42,height:42,borderRadius:'50%',background:item.disabled?'#F1F5F9':item.ok?T.accent:'#FFB000',color:item.disabled?T.txt3:'#fff',fontSize:20,fontWeight:900,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{item.ok?'✓':item.disabled?'–':'!'}</span>
           <span style={{flex:1,minWidth:0}}>
             <span style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
@@ -1223,252 +1401,38 @@ function Bolao(){
           <span style={{fontSize:28,color:T.txt3}}>›</span>
         </button>
       ))}
-
       <div style={{display:'flex',justifyContent:'center',gap:18,marginTop:28,fontSize:13,color:T.txt3}}>
         <button style={{border:'none',background:'transparent',color:T.txt3,cursor:'pointer'}} onClick={()=>setTab('ranking')}>Ver Ranking</button>
         <span>·</span>
         <button style={{border:'none',background:'transparent',color:T.txt3,cursor:'pointer'}} onClick={()=>setTab('rules')}>Regulamento</button>
       </div>
-
-      <div style={{display:'none'}}>
-      {/* Hero */}
-      <div className="home-hero" style={{background:'linear-gradient(135deg,#166534 0%,#16a34a 55%,#65a30d 100%)',borderRadius:18,padding:'20px 20px 16px',marginBottom:14,position:'relative',overflow:'hidden',boxShadow:'0 18px 48px rgba(22,101,52,.24)'}}>
-        <div style={{position:'absolute',top:-30,right:-30,width:120,height:120,borderRadius:'50%',background:'rgba(255,255,255,.07)',pointerEvents:'none'}}/>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:16}}>
-          <div>
-            <div style={{fontSize:11,color:'rgba(255,255,255,.65)',letterSpacing:1,textTransform:'uppercase',marginBottom:2}}>Bem-vindo de volta</div>
-            <div style={{fontFamily:'\"Bebas Neue\", sans-serif',fontSize:30,fontWeight:400,color:'#fff',letterSpacing:1}}>{meName||'Sem nome'}</div>
-          </div>
-          {myStats.rank&&(
-            <div style={{background:'rgba(255,255,255,.15)',borderRadius:12,padding:'8px 14px',textAlign:'center'}}>
-              <div style={{fontSize:22,fontWeight:900,color:'#fff',lineHeight:1}}>{myStats.rank===1?'🥇':myStats.rank===2?'🥈':myStats.rank===3?'🥉':`${myStats.rank}º`}</div>
-              <div style={{fontSize:9,color:'rgba(255,255,255,.7)',marginTop:2}}>lugar</div>
-            </div>
-          )}
-        </div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
-          {[{v:myStats.pts,l:'pts',c:'#fff'},{v:myStats.exact,l:'exatos',c:'#bbf7d0'},{v:myStats.win,l:'vencedor',c:'#fde68a'},{v:myStats.miss,l:'erros',c:'#fecaca'}].map(s=>(
-            <div key={s.l} className="brand-chip mini-tile" style={{background:'rgba(255,255,255,.12)',borderRadius:12,padding:'10px 6px',textAlign:'center'}}>
-              <div style={{fontSize:22,fontWeight:900,color:s.c,lineHeight:1}}>{s.v}</div>
-              <div style={{fontSize:9,color:'rgba(255,255,255,.65)',marginTop:3}}>{s.l}</div>
-            </div>
-          ))}
-        </div>
-        {myStats.total>0&&(
-          <div style={{marginTop:12}}>
-            <div style={{height:4,background:'rgba(255,255,255,.2)',borderRadius:4,overflow:'hidden',display:'flex'}}>
-              <div style={{height:'100%',width:`${Math.round(myStats.exact/myStats.total*100)}%`,background:'#fff'}}/>
-              <div style={{height:'100%',width:`${Math.round(myStats.win/myStats.total*100)}%`,background:'rgba(255,255,255,.55)'}}/>
-            </div>
-            <div style={{display:'flex',justifyContent:'space-between',marginTop:5}}>
-              <span style={{fontSize:10,color:'rgba(255,255,255,.6)'}}>{myStats.pct}% de acerto</span>
-              <span style={{fontSize:10,color:'rgba(255,255,255,.6)'}}>{myStats.total} jogos avaliados</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div style={{display:'flex',gap:8,marginBottom:14}}>
-        <button style={{flex:1,padding:'10px 12px',borderRadius:12,border:`1px solid ${reminderEnabled?T.accentMd:T.border}`,background:reminderEnabled?T.accentLt:T.card,color:reminderEnabled?T.accent:T.txt2,fontWeight:600,fontSize:12,cursor:'pointer'}} onClick={()=>reminderEnabled?setReminderEnabled(false):requestReminderPermission()}>
-          {reminderEnabled?'🔔 Lembretes ON':'🔔 Ativar lembretes'}
-        </button>
-        <button style={{padding:'10px 12px',borderRadius:12,border:`1px solid ${T.border}`,background:T.card,color:T.txt2,fontWeight:600,fontSize:12,cursor:'pointer'}} onClick={()=>setTab('rules')}>
-          📘 Regras
-        </button>
-      </div>
-
-      {/* Progress */}
-      <div className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',marginBottom:14,boxShadow:shadow}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,marginBottom:12}}>
-          <div>
-            <div style={{fontSize:14,fontWeight:800,color:T.txt1}}>Seu progresso</div>
-            <div style={{fontSize:11,color:T.txt3,marginTop:2}}>{savedPredCount}/{matches.length} palpites de jogos feitos</div>
-          </div>
-          <div style={{fontSize:24,fontWeight:900,color:progressPct===100?T.accent:T.txt1}}>{progressPct}%</div>
-        </div>
-        <div style={{height:9,background:T.bg,borderRadius:999,overflow:'hidden',marginBottom:12}}>
-          <div style={{height:'100%',width:`${progressPct}%`,background:'linear-gradient(90deg,#16a34a,#84cc16)',borderRadius:999}}/>
-        </div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
-          {[
-            {v:savedPredCount,l:'salvos',c:T.accent,b:T.accentLt},
-            {v:myStats.missing,l:'faltando',c:myStats.missing?T.half:T.accent,b:myStats.missing?T.halfBg:T.accentLt},
-            {v:champDone?'sim':'não',l:'campeão',c:champDone?T.gold:T.txt3,b:champDone?T.goldBg:T.bg},
-            {v:urgentPendingAll.length,l:'48h',c:urgentPendingAll.length?T.err:T.txt3,b:urgentPendingAll.length?T.errBg:T.bg},
-          ].map(item=>(
-            <div key={item.l} className="mini-tile" style={{background:item.b,borderRadius:12,padding:'9px 6px',textAlign:'center',border:`1px solid ${T.border}`}}>
-              <div style={{fontSize:16,fontWeight:900,color:item.c,lineHeight:1,textTransform:'uppercase'}}>{item.v}</div>
-              <div style={{fontSize:9,color:T.txt3,marginTop:4}}>{item.l}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Action center */}
-      <div className="lux-card" style={{background:actionCount?T.halfBg:T.card,border:`1px solid ${actionCount?'#FCD34D':T.border}`,borderRadius:16,padding:'16px',marginBottom:14,boxShadow:shadow}}>
-        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
-          <div style={{width:36,height:36,borderRadius:12,background:actionCount?'#FEF3C7':T.accentLt,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>
-            {actionCount?'⚠️':'✅'}
-          </div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:14,fontWeight:800,color:T.txt1}}>Prioridades agora</div>
-            <div style={{fontSize:11,color:T.txt3,marginTop:1}}>{actionCount?`${actionCount} item${actionCount!==1?'s':''} pedindo atenção`:'Tudo certo por enquanto'}</div>
-          </div>
-          {myStats.missing>0&&(
-            <button style={{padding:'6px 12px',borderRadius:10,border:'none',background:T.half,color:'#fff',fontSize:11,fontWeight:800,cursor:'pointer'}} onClick={()=>{setTab('matches');setOnlyMissing(true);}}>Ver faltando</button>
-          )}
-        </div>
-        {!champDone&&!champLocked&&(
-          <button style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:12,border:`1px solid ${T.border}`,background:T.card,cursor:'pointer',marginBottom:8,textAlign:'left'}} onClick={()=>document.getElementById('champion-card')?.scrollIntoView({behavior:'smooth',block:'center'})}>
-            <span style={{fontSize:18}}>🏆</span>
-            <span style={{flex:1}}>
-              <span style={{display:'block',fontSize:12,fontWeight:800,color:T.txt1}}>Escolha seu campeão</span>
-              <span style={{display:'block',fontSize:10,color:T.txt3,marginTop:1}}>Trava no início da Copa: {champLockLabel}</span>
-            </span>
-          </button>
-        )}
-        {urgentPending.map(m=>(
-          <button key={m.id} style={{width:'100%',display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:12,border:`1px solid ${T.border}`,background:T.card,cursor:'pointer',marginBottom:8,textAlign:'left'}} onClick={()=>{setTab('matches');setOnlyMissing(true);}}>
-            <span style={{fontSize:18}}>{fl(m.home)}</span>
-            <span style={{flex:1,minWidth:0}}>
-              <span style={{display:'block',fontSize:12,fontWeight:800,color:T.txt1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{m.home} × {m.away}</span>
-              <span style={{display:'block',fontSize:10,color:T.txt3,marginTop:1}}>{fDate(m.dt)} às {fTime(m.dt)} · falta {timeUntilShort(m.dt)}</span>
-            </span>
-            <span style={{fontSize:18}}>{fl(m.away)}</span>
-          </button>
-        ))}
-        {urgentPendingAll.length>urgentPending.length&&(
-          <button style={{width:'100%',padding:'9px 12px',borderRadius:12,border:`1px dashed #F59E0B`,background:'rgba(255,255,255,.55)',color:T.half,fontSize:11,fontWeight:800,cursor:'pointer'}} onClick={()=>{setTab('matches');setOnlyMissing(true);}}>
-            Ver mais {urgentPendingAll.length-urgentPending.length} pendente{urgentPendingAll.length-urgentPending.length!==1?'s':''} nas próximas 48h
-          </button>
-        )}
-        {actionCount===0&&nextMatches.length>0&&(
-          <div style={{display:'flex',flexDirection:'column',gap:8}}>
-            {nextMatches.slice(0,3).map(m=>(
-              <div key={m.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:12,border:`1px solid ${T.border}`,background:T.bg}}>
-                <span style={{fontSize:17}}>{fl(m.home)}</span>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:12,fontWeight:800,color:T.txt1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{m.home} × {m.away}</div>
-                  <div style={{fontSize:10,color:T.txt3,marginTop:1}}>Próximo jogo em {timeUntilShort(m.dt)}</div>
-                </div>
-                <span style={{fontSize:17}}>{fl(m.away)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Champion */}
-      <div id="champion-card" className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',marginBottom:14,boxShadow:shadow}}>
-        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
-          <div style={{width:40,height:40,background:T.goldBg,borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>🏆</div>
-          <div>
-            <div style={{fontSize:14,fontWeight:700,color:T.txt1}}>Campeão da Copa</div>
-            <div style={{fontSize:11,color:T.txt3}}>Vale {CHAMP_PTS} pontos · não muda após o início da Copa</div>
-            <div style={{fontSize:10,color:T.txt3,marginTop:1}}>Prazo: {champLockLabel}</div>
-          </div>
-        </div>
-        {!champLocked?(
-          <div style={{display:'flex',gap:8}}>
-            <select className="inp" style={{...inpSt,flex:1,padding:'10px 12px'}} value={champInput} onChange={e=>setChampInput(e.target.value)}>
-              <option value="">Escolha o campeão...</option>
-              {ALL_TEAMS.map(t=><option key={t} value={t}>{fl(t)} {t}</option>)}
-            </select>
-            <button className="btn-acc" style={{...btnAcc,padding:'10px 18px',whiteSpace:'nowrap'}} onClick={saveChamp}>Salvar</button>
-          </div>
-        ):(
-          <div style={{fontSize:13,color:T.txt2}}>
-            {champPreds[me]?`Seu palpite: ${fl(champPreds[me])} ${champPreds[me]}`:'Sem palpite de campeão'}
-            {champWinner&&<span style={{marginLeft:8,fontWeight:700,color:champWinner===champPreds[me]?T.ok:T.err}}>{champWinner===champPreds[me]?`✓ Acertou! +${CHAMP_PTS}pts`:`✗ Campeão: ${fl(champWinner)} ${champWinner}`}</span>}
-          </div>
-        )}
-        {parts.filter(n=>n!==me&&champPreds[n]).length>0&&(
-          <div style={{marginTop:12,paddingTop:10,borderTop:`1px solid ${T.border}`,display:'flex',flexWrap:'wrap',gap:6}}>
-            {!champLocked&&(
-              <span style={{fontSize:11,fontWeight:600,padding:'4px 10px',borderRadius:20,background:T.bg,color:T.txt2,border:`1px solid ${T.border}`}}>
-                {parts.filter(n=>n!==me&&champPreds[n]).length} amigo{parts.filter(n=>n!==me&&champPreds[n]).length!==1?'s':''} já escolheram campeão. Os palpites aparecem após o início da Copa.
-              </span>
-            )}
-            {champLocked&&parts.filter(n=>n!==me&&champPreds[n]).map(n=>{
-              const correct=champWinner&&champPreds[n]===champWinner;
-              return <span key={n} style={{fontSize:11,fontWeight:600,padding:'4px 10px',borderRadius:20,background:correct?T.okBg:T.bg,color:correct?T.ok:T.txt2,border:`1px solid ${correct?T.accentMd:T.border}`}}>{getName(n)}: {fl(champPreds[n])} {champPreds[n]}{correct?' ✓':''}</span>;
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Mini ranking */}
-      <div style={sec}>Classificação</div>
-      <div className="lux-card" style={{background:T.card,borderRadius:16,border:`1px solid ${T.border}`,boxShadow:shadow,marginBottom:14,overflow:'hidden'}}>
-        {board.slice(0,5).map((p,i)=>(
-          <div key={p.uid} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:p.uid===me?'#F0FDF4':'transparent',borderBottom:i<Math.min(board.length,5)-1?`1px solid ${T.border}`:'none'}}>
-            <span style={{fontSize:16,width:24,textAlign:'center'}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`}</span>
-            <span style={{flex:1,fontSize:13,fontWeight:600,color:p.uid===me?T.accent:T.txt1}}>{p.name}{p.uid===me&&<span style={{fontSize:11,color:T.txt3,fontWeight:400}}> · você</span>}</span>
-            <div style={{fontSize:11,color:T.txt3,display:'flex',gap:10}}><span style={{color:T.ok}}>⭐{p.exact}</span><span style={{color:T.half}}>✓{p.win}</span></div>
-            <span style={{fontSize:18,fontWeight:800,color:T.txt1,minWidth:28,textAlign:'right'}}>{p.pts}</span>
-          </div>
-        ))}
-        {board.length>5&&<button style={{width:'100%',padding:'11px',background:'none',border:'none',borderTop:`1px solid ${T.border}`,fontSize:12,color:T.accent,cursor:'pointer',fontWeight:600}} onClick={()=>setTab('ranking')}>Ver ranking completo ({board.length} participantes) →</button>}
-        {board.length===0&&<div style={{padding:'20px 16px',fontSize:13,color:T.txt3,textAlign:'center'}}>Nenhum palpite ainda.</div>}
-      </div>
-
-      {/* Today */}
-      {matches.filter(m=>isToday(m.dt)).length>0&&<><div style={sec}>Jogos de Hoje</div>{matches.filter(m=>isToday(m.dt)).map(m=><MatchCard key={m.id} m={m}/>)}</>}
-      {matches.filter(m=>isUpcoming(m.dt)).length>0&&<><div style={sec}>Em Breve</div>{matches.filter(m=>isUpcoming(m.dt)).slice(0,3).map(m=><MatchCard key={m.id} m={m}/>)}</>}
-      {matches.filter(m=>isToday(m.dt)||isUpcoming(m.dt)).length===0&&(
-        <div className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'28px 20px',textAlign:'center',boxShadow:shadow}}>
-          <div style={{fontSize:36,marginBottom:8}}>🗓️</div>
-          <div style={{fontSize:14,color:T.txt2,lineHeight:1.6}}>Nenhum jogo nas próximas 24h.<br/>{nextMatches[0]?<>Próximo: <strong style={{color:T.accent}}>{fDate(nextMatches[0].dt)} às {fTime(nextMatches[0].dt)}</strong>.</>:<>Aguardando próximos jogos.</>}</div>
-        </div>
-      )}
-      <div style={{height:88}}/>
-      </div>
     </div>
   );
 
-  // ── Matches Tab ─────────────────────────────────────────────────────────────
   const TabMatches=(
     <div style={{padding:'28px 14px 72px',maxWidth:1120,margin:'0 auto'}}>
       <div style={{marginBottom:22}}>
         <div style={{fontSize:13,color:T.txt3,marginBottom:8}}>Seus palpites</div>
-        <h1 style={{fontSize:30,lineHeight:1.1,color:T.txt1,letterSpacing:-.8,marginBottom:8}}>Palpites - Fase de Grupos</h1>
-        <p style={{fontSize:15,color:T.txt2,lineHeight:1.6,maxWidth:760}}>
-          Preencha seus placares por dia de jogo. Cada card mostra se o palpite está pendente, salvo, fechado ou com resultado.
-        </p>
+        <h1 style={{fontSize:30,lineHeight:1.1,color:T.txt1,letterSpacing:-.8,marginBottom:8}}>{matchView==='groups'?'Palpites - Fase de Grupos':'Palpites - Eliminatórias'}</h1>
+        <p style={{fontSize:15,color:T.txt2,lineHeight:1.6,maxWidth:760}}>{matchView==='groups'?'Preencha seus palpites para todos os jogos da fase de grupos. A fase inteira trava no início da Copa: ':'Os placares do mata-mata aparecem quando os jogos forem cadastrados e travam no horário de cada partida.'}{matchView==='groups'&&<strong>{champLockLabel}</strong>}</p>
       </div>
-
-      <div className="lux-card" style={{background:'#ECFDF5',border:`1px solid ${T.accentMd}`,borderRadius:14,padding:'14px 16px',boxShadow:shadow,display:'flex',alignItems:'center',gap:12,marginBottom:22}}>
-        <div style={{width:34,height:34,borderRadius:12,background:'#D1FAE5',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>⏱</div>
-        <div style={{fontSize:14,color:T.txt2,lineHeight:1.5}}>
-          A fase de grupos trava no início da Copa. O palpite de campeão também trava no primeiro jogo: <strong style={{color:T.txt1}}>{champLockLabel}</strong>.
-        </div>
-      </div>
-
-      <div className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:18,padding:'16px',boxShadow:shadow,marginBottom:18}}>
+      <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'16px',boxShadow:shadow,marginBottom:18}}>
         <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:14}}>
-          <StatTile value={savedPredCount} label="salvos" color={T.accent} bg={T.accentLt}/>
-          <StatTile value={myStats.missing} label="faltando" color={myStats.missing?T.half:T.accent} bg={myStats.missing?T.halfBg:T.accentLt}/>
-          <StatTile value={lockedMatchCount} label="fechados" color="#1D4ED8" bg="#DBEAFE"/>
+          <StatTile value={savedGroupPredCount} label="salvos" color={T.accent} bg={T.accentLt}/>
+          <StatTile value={Math.max(0,groupMatches.length-savedGroupPredCount)} label="faltando" color={savedGroupPredCount===groupMatches.length?T.accent:T.half} bg={savedGroupPredCount===groupMatches.length?T.accentLt:T.halfBg}/>
+          <StatTile value={groupMatches.length} label="jogos grupos" color={T.txt1} bg={T.bg}/>
           <StatTile value={GROUPS.length} label="grupos" color={T.txt1} bg={T.bg}/>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
-          <button className="pill" style={{padding:'10px 14px',borderRadius:999,border:`1px solid ${!onlyMissing?T.accent:T.border}`,fontSize:12,fontWeight:900,background:!onlyMissing?T.accentLt:T.card,color:!onlyMissing?T.accent:T.txt2,cursor:'pointer'}} onClick={()=>setOnlyMissing(false)}>
-            Todos os jogos
-          </button>
-          <button className="pill" style={{padding:'10px 14px',borderRadius:999,border:`1px solid ${onlyMissing?T.half:T.border}`,fontSize:12,fontWeight:900,background:onlyMissing?T.halfBg:T.card,color:onlyMissing?T.half:T.txt2,cursor:'pointer'}} onClick={()=>setOnlyMissing(true)}>
-            Só faltando
-          </button>
-          <span style={{fontSize:12,color:T.txt3,marginLeft:'auto'}}>{predictionMatches.length} jogo{predictionMatches.length!==1?'s':''} na lista</span>
+          <button className="pill" style={{padding:'10px 14px',borderRadius:999,border:'1px solid '+(!onlyMissing?T.accent:T.border),fontSize:12,fontWeight:900,background:!onlyMissing?T.accentLt:T.card,color:!onlyMissing?T.accent:T.txt2,cursor:'pointer'}} onClick={()=>setOnlyMissing(false)}>Todos os jogos</button>
+          <button className="pill" style={{padding:'10px 14px',borderRadius:999,border:'1px solid '+(onlyMissing?T.half:T.border),fontSize:12,fontWeight:900,background:onlyMissing?T.halfBg:T.card,color:onlyMissing?T.half:T.txt2,cursor:'pointer'}} onClick={()=>setOnlyMissing(true)}>Só faltando</button>
         </div>
       </div>
-
-      <div style={{display:'flex',alignItems:'center',borderBottom:`1px solid ${T.border}`,marginBottom:18,gap:18}}>
-        <button style={{border:'none',borderBottom:`2px solid ${T.accent}`,background:'transparent',padding:'0 0 12px',fontSize:14,fontWeight:900,color:T.accent,cursor:'pointer'}}>Fase de Grupos</button>
-        <button disabled style={{border:'none',borderBottom:'2px solid transparent',background:'transparent',padding:'0 0 12px',fontSize:14,fontWeight:800,color:T.txt3,opacity:.7,cursor:'default'}}>Chaveamento em breve</button>
+      <div style={{display:'flex',alignItems:'center',borderBottom:'1px solid '+T.border,marginBottom:18,gap:18}}>
+        <button style={{border:'none',borderBottom:'2px solid '+(matchView==='groups'?T.accent:'transparent'),background:'transparent',padding:'0 0 12px',fontSize:14,fontWeight:matchView==='groups'?900:800,color:matchView==='groups'?T.accent:T.txt3,cursor:'pointer'}} onClick={()=>setMatchView('groups')}>Fase de Grupos</button>
+        <button style={{border:'none',borderBottom:'2px solid '+(matchView==='knockout'?T.accent:'transparent'),background:'transparent',padding:'0 0 12px',fontSize:14,fontWeight:matchView==='knockout'?900:800,color:matchView==='knockout'?T.accent:T.txt3,cursor:'pointer'}} onClick={()=>{setMatchView('knockout');setOnlyMissing(false);}}>Eliminatórias</button>
       </div>
-
-      <SectionTitle title="Grupos" text="A tela segue o modelo do site de referência: um card por grupo e um botão para salvar os seis jogos daquele grupo."/>
-      {predictionMatches.filter(m=>m.ph==='Grupos').length===0&&<div style={{textAlign:'center',padding:'48px 0',color:T.txt3,fontSize:14}}>{onlyMissing?'Nenhum palpite faltando ✓':'Nenhuma partida de grupos encontrada.'}</div>}
+      {matchView==='groups'&&<><SectionTitle title="Grupos" text="Um card por grupo e um botão para salvar os seis jogos daquele grupo."/>
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(420px,1fr))',gap:16}}>
         {GROUPS.map(g=>({g,matches:predictionMatches.filter(m=>m.ph==='Grupos'&&m.gr===g)})).filter(group=>group.matches.length>0).map(group=>{
           const missingCount=group.matches.filter(m=>!matchLocked(m)&&(!(preds[me]||{})[m.id]||(preds[me]||{})[m.id].home==='')).length;
@@ -1479,535 +1443,66 @@ function Bolao(){
               <div style={{background:'#00732E',color:'#fff',padding:'11px 14px',display:'flex',alignItems:'center',gap:10}}>
                 <h3 style={{fontSize:15,fontWeight:950,flex:1}}>Grupo {group.g}</h3>
                 <span style={{fontSize:10,fontWeight:900,color:missingCount&&!lockedGroup?'#FEF3C7':'#BBF7D0'}}>{lockedGroup?'fechado':missingCount?'incompleto':'completo'}</span>
-                {!lockedGroup&&(
-                  <button className="btn-acc" onClick={()=>saveGroupPreds(group.matches)} disabled={saving==='group-'+group.g} style={{border:'none',background:'#16A34A',color:'#fff',borderRadius:8,padding:'7px 12px',fontSize:12,fontWeight:900,cursor:'pointer'}}>
-                    {saving==='group-'+group.g?'Salvando...':'Salvar'}
-                  </button>
-                )}
+                {!lockedGroup&&<button className="btn-acc" onClick={()=>saveGroupPreds(group.matches)} disabled={saving==='group-'+group.g} style={{border:'none',background:'#16A34A',color:'#fff',borderRadius:8,padding:'7px 12px',fontSize:12,fontWeight:900,cursor:'pointer'}}>{saving==='group-'+group.g?'Salvando...':'Salvar'}</button>}
               </div>
               <div style={{padding:'10px 12px'}}>
                 {group.matches.map(m=>{
-                  const inp=pi[m.id]||{home:'',away:''};
-                  const myS=(preds[me]||{})[m.id];
-                  const hasPred=myS&&myS.home!=='';
-                  const locked=matchLocked(m);
-                  const hasR=m.result&&m.result.home!=='';
-                  const pts=hasPred?calcPts(myS,m.result):null;
+                  const inp=pi[m.id]||{home:'',away:''}; const myS=(preds[me]||{})[m.id]; const hasPred=myS&&myS.home!==''; const locked=matchLocked(m); const hasR=m.result&&m.result.home!==''; const pts=hasPred?calcPts(myS,m.result):null;
                   return (
                     <div key={m.id} style={{display:'grid',gridTemplateColumns:'54px minmax(0,1fr) 44px 14px 44px minmax(0,1fr) 84px',gap:8,alignItems:'center',padding:'8px 0',borderBottom:'1px solid '+T.border}}>
                       <span style={{fontSize:12,color:T.txt3}}>{new Date(m.dt).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',timeZone:'America/Sao_Paulo'})}</span>
                       <span style={{fontSize:13,fontWeight:800,color:T.txt1,textAlign:'right',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{m.home}</span>
-                      {!locked?(
-                        <input className="score-inp" type="number" min="0" max="20" placeholder="" style={{...scoreInpSt,width:40,height:34,fontSize:16,borderRadius:8}} value={inp.home} onChange={e=>setPi(p=>({...p,[m.id]:{...p[m.id],home:e.target.value}}))}/>
-                      ):(
-                        <span style={{height:34,borderRadius:8,background:T.bg,border:'1px solid '+T.border,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:900,color:T.txt2}}>{hasPred?myS.home:'-'}</span>
-                      )}
+                      {!locked?<input className="score-inp" type="number" min="0" max="20" style={{...scoreInpSt,width:40,height:34,fontSize:16,borderRadius:8}} value={inp.home} onChange={e=>setPi(p=>({...p,[m.id]:{...p[m.id],home:e.target.value}}))}/>:<span style={{height:34,borderRadius:8,background:T.bg,border:'1px solid '+T.border,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:900,color:T.txt2}}>{hasPred?myS.home:'-'}</span>}
                       <span style={{fontSize:12,color:T.txt3,textAlign:'center'}}>x</span>
-                      {!locked?(
-                        <input className="score-inp" type="number" min="0" max="20" placeholder="" style={{...scoreInpSt,width:40,height:34,fontSize:16,borderRadius:8}} value={inp.away} onChange={e=>setPi(p=>({...p,[m.id]:{...p[m.id],away:e.target.value}}))}/>
-                      ):(
-                        <span style={{height:34,borderRadius:8,background:T.bg,border:'1px solid '+T.border,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:900,color:T.txt2}}>{hasPred?myS.away:'-'}</span>
-                      )}
+                      {!locked?<input className="score-inp" type="number" min="0" max="20" style={{...scoreInpSt,width:40,height:34,fontSize:16,borderRadius:8}} value={inp.away} onChange={e=>setPi(p=>({...p,[m.id]:{...p[m.id],away:e.target.value}}))}/>:<span style={{height:34,borderRadius:8,background:T.bg,border:'1px solid '+T.border,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:900,color:T.txt2}}>{hasPred?myS.away:'-'}</span>}
                       <span style={{fontSize:13,fontWeight:800,color:T.txt1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{m.away}</span>
-                      <span style={{fontSize:10,fontWeight:800,textAlign:'center',color:hasR?T.gold:locked?'#1D4ED8':hasPred?T.accent:T.txt3,background:hasR?T.goldBg:locked?'#DBEAFE':hasPred?T.accentLt:T.bg,borderRadius:999,padding:'5px 7px'}}>{hasR?((m.result.home)+'-'+(m.result.away)):locked?(hasPred?'Fechado':'Sem palpite'):hasPred?'Salvo':'Aguardando'}</span>
+                      <span style={{fontSize:10,fontWeight:800,textAlign:'center',color:hasR?T.gold:locked?'#1D4ED8':hasPred?T.accent:T.txt3,background:hasR?T.goldBg:locked?'#DBEAFE':hasPred?T.accentLt:T.bg,borderRadius:999,padding:'5px 7px'}}>{hasR?(m.result.home+'-'+m.result.away):locked?(hasPred?'Fechado':'Sem palpite'):hasPred?'Salvo':'Aguardando'}</span>
                       {pts!==null&&<span style={{gridColumn:'1 / -1',fontSize:10,color:pts===7?T.ok:(pts>=3?T.half:pts===1?'#1D4ED8':T.err),fontWeight:800,textAlign:'right'}}>+{pts} ponto{pts!==1?'s':''}</span>}
                     </div>
                   );
                 })}
-                <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:T.txt3,paddingTop:9}}>
-                  <span>{doneCount} salvo{doneCount!==1?'s':''}</span>
-                  <span>{missingCount} faltando</span>
-                </div>
+                <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:T.txt3,paddingTop:9}}><span>{doneCount} salvo{doneCount!==1?'s':''}</span><span>{missingCount} faltando</span></div>
               </div>
             </div>
           );
         })}
-      </div>
-
-      {predictionMatches.some(m=>m.ph!=='Grupos')&&(
-        <>
-          <SectionTitle title="Eliminatórias" text="Ficam disponíveis fase a fase, depois que os confrontos forem definidos."/>
-          {predictionDayGroups.filter(group=>group.matches.some(m=>m.ph!=='Grupos')).map((group,idx)=>(
-            <details key={group.key} open={idx===0} style={{marginBottom:10}}>
-              <summary style={{listStyle:'none',cursor:'pointer',background:T.card,border:'1px solid '+T.border,borderRadius:12,padding:'12px 14px',boxShadow:shadow,display:'flex',alignItems:'center',gap:12}}>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:13,fontWeight:800,color:T.txt1,textTransform:'capitalize'}}>{group.label}</div>
-                  <div style={{fontSize:11,color:T.txt3,marginTop:2}}>{group.matches.filter(m=>m.ph!=='Grupos').length} jogo{group.matches.filter(m=>m.ph!=='Grupos').length!==1?'s':''}</div>
-                </div>
-                <span style={{fontSize:15,color:T.txt3}}>⌄</span>
-              </summary>
-              <div style={{paddingTop:10}}>
-                {group.matches.filter(m=>m.ph!=='Grupos').map(m=><MatchCard key={m.id} m={m}/>) }
-              </div>
-            </details>
-          ))}
-        </>
-      )}
+      </div></>}
+      {matchView==='knockout'&&<>{predictionMatches.some(m=>m.ph!=='Grupos')?<><SectionTitle title="Eliminatórias" text="Placares liberados fase a fase."/>{predictionDayGroups.filter(group=>group.matches.some(m=>m.ph!=='Grupos')).map((group,idx)=><details key={group.key} open={idx===0} style={{marginBottom:10}}><summary style={{listStyle:'none',cursor:'pointer',background:T.card,border:'1px solid '+T.border,borderRadius:12,padding:'12px 14px',boxShadow:shadow,display:'flex',alignItems:'center',gap:12}}><div style={{flex:1}}><div style={{fontSize:13,fontWeight:800,color:T.txt1,textTransform:'capitalize'}}>{group.label}</div><div style={{fontSize:11,color:T.txt3,marginTop:2}}>{group.matches.filter(m=>m.ph!=='Grupos').length} jogo(s)</div></div><span style={{fontSize:15,color:T.txt3}}>⌄</span></summary><div style={{paddingTop:10}}>{group.matches.filter(m=>m.ph!=='Grupos').map(m=><MatchCard key={m.id} m={m}/>)}</div></details>)}</>:<div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'26px',boxShadow:shadow,textAlign:'center',color:T.txt2}}><div style={{fontSize:34,marginBottom:8}}>🏟️</div><div style={{fontSize:15,fontWeight:900,color:T.txt1,marginBottom:4}}>Eliminatórias ainda não cadastradas</div><div style={{fontSize:12,lineHeight:1.55}}>Quando os confrontos do mata-mata forem definidos, eles aparecem aqui para palpite por fase.</div></div>}</>}
       <div style={{height:88}}/>
     </div>
   );
 
-  // ── Ranking Tab ─────────────────────────────────────────────────────────────
   const TabRanking=(
     <div style={{padding:'28px 14px 72px',maxWidth:1120,margin:'0 auto'}}>
-      <div style={{display:'flex',alignItems:'flex-end',gap:16,marginBottom:22,flexWrap:'wrap'}}>
-        <div style={{flex:1,minWidth:260}}>
-          <div style={{fontSize:13,color:T.txt3,marginBottom:8}}>Classificação</div>
-          <h1 style={{fontSize:30,lineHeight:1.1,color:T.txt1,letterSpacing:-.8,marginBottom:8}}>Ranking</h1>
-          <p style={{fontSize:15,color:T.txt2,lineHeight:1.6,maxWidth:720}}>Classificação geral dos participantes do bolão, com desempate automático e recortes por dia depois que houver resultados.</p>
-        </div>
-        <button className="pill" onClick={copyRanking} style={{padding:'10px 14px',borderRadius:12,border:'1px solid '+T.accentMd,background:T.card,color:T.accent,fontSize:12,fontWeight:900,cursor:'pointer'}}>📋 Copiar pro WhatsApp</button>
-      </div>
-
-      <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:18}}>
-        <StatTile value={parts.length} label="participantes" color={T.accent} bg={T.accentLt}/>
-        <StatTile value={resultMatchCount} label="jogos valendo" color="#1D4ED8" bg="#DBEAFE"/>
-        <StatTile value={board[0]?.pts||0} label="pontuação líder" color={T.gold} bg={T.goldBg}/>
-        <StatTile value={myStats.rank?myStats.rank+'º':'-'} label="sua posição" color={myStats.rank===1?T.gold:T.txt1} bg={myStats.rank===1?T.goldBg:T.bg}/>
-      </div>
-
-      <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,boxShadow:shadow,overflow:'hidden',marginBottom:18}}>
-        <div style={{overflowX:'auto'}}>
-          <table style={{width:'100%',borderCollapse:'collapse',minWidth:760}}>
-            <thead>
-              <tr style={{background:'#00732E',color:'#fff'}}>
-                <th style={{padding:'12px 14px',fontSize:12,textAlign:'left',fontWeight:900,width:56}}>#</th>
-                <th style={{padding:'12px 14px',fontSize:12,textAlign:'left',fontWeight:900}}>Participante</th>
-                <th style={{padding:'12px 10px',fontSize:12,textAlign:'center',fontWeight:900}}>Exatos</th>
-                <th style={{padding:'12px 10px',fontSize:12,textAlign:'center',fontWeight:900}}>Vencedor</th>
-                <th style={{padding:'12px 10px',fontSize:12,textAlign:'center',fontWeight:900}}>Erros</th>
-                <th style={{padding:'12px 10px',fontSize:12,textAlign:'center',fontWeight:900}}>Campeão</th>
-                <th style={{padding:'12px 14px',fontSize:12,textAlign:'right',fontWeight:900}}>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {board.map((p,i)=>(
-                <tr key={p.uid} style={{background:p.uid===me?'#F0FDF4':i===0?'#FFFBEB':'#fff',borderBottom:'1px solid '+T.border}}>
-                  <td style={{padding:'13px 14px',fontSize:13,fontWeight:900,color:i<3?T.gold:T.txt3}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</td>
-                  <td style={{padding:'13px 14px'}}>
-                    <div style={{fontSize:14,fontWeight:900,color:p.uid===me?T.accent:T.txt1}}>{p.name}{p.uid===me&&<span style={{fontSize:11,color:T.txt3,fontWeight:500}}> · você</span>}</div>
-                    <div style={{fontSize:11,color:T.txt3,marginTop:2}}>{p.total} jogo{p.total!==1?'s':''} pontuado{p.total!==1?'s':''}</div>
-                  </td>
-                  <td style={{padding:'13px 10px',textAlign:'center',fontSize:13,fontWeight:800,color:T.ok}}>{p.exact}</td>
-                  <td style={{padding:'13px 10px',textAlign:'center',fontSize:13,fontWeight:800,color:T.half}}>{p.win}</td>
-                  <td style={{padding:'13px 10px',textAlign:'center',fontSize:13,fontWeight:800,color:T.err}}>{p.miss}</td>
-                  <td style={{padding:'13px 10px',textAlign:'center',fontSize:13,fontWeight:800,color:p.champHit?T.gold:T.txt3}}>{p.champHit?'✓':champPreds[p.uid]?'feito':'-'}</td>
-                  <td style={{padding:'13px 14px',textAlign:'right',fontSize:22,fontWeight:950,color:T.txt1}}>{p.pts}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {board.length===0&&<div style={{padding:'28px',fontSize:13,color:T.txt3,textAlign:'center'}}>Nenhum participante com palpite ainda.</div>}
-      </div>
-
-      {dailyBoards.length>0&&(
-        <>
-          <SectionTitle title="Ranking por dia" text="Um recorte para ver quem mandou melhor em cada data com resultado."/>
-          {dailyBoards.slice().reverse().map((group,idx)=>(
-            <details key={group.key} open={idx===0} style={{marginBottom:10}}>
-              <summary style={{listStyle:'none',cursor:'pointer',background:T.card,border:'1px solid '+T.border,borderRadius:14,padding:'13px 15px',boxShadow:shadow,display:'flex',alignItems:'center',gap:10}}>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:13,fontWeight:900,color:T.txt1,textTransform:'capitalize'}}>{group.label}</div>
-                  <div style={{fontSize:11,color:T.txt3,marginTop:2}}>{group.matches.length} jogo{group.matches.length!==1?'s':''} com resultado</div>
-                </div>
-                {group.board[0]&&<span style={{fontSize:11,fontWeight:900,color:T.gold,background:T.goldBg,borderRadius:999,padding:'5px 10px'}}>líder: {group.board[0].name}</span>}
-                <span style={{fontSize:16,color:T.txt3}}>⌄</span>
-              </summary>
-              <div style={{background:T.card,border:'1px solid '+T.border,borderTop:'none',borderRadius:'0 0 14px 14px',overflow:'hidden'}}>
-                {group.board.map((p,i)=>(
-                  <div key={p.uid} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px',background:p.uid===me?'#F0FDF4':'transparent',borderBottom:i<group.board.length-1?'1px solid '+T.border:'none'}}>
-                    <span style={{fontSize:14,width:24,textAlign:'center',fontWeight:950,color:i===0?T.gold:T.txt3}}>{i+1}º</span>
-                    <span style={{flex:1,fontSize:12,fontWeight:900,color:p.uid===me?T.accent:T.txt1}}>{p.name}{p.uid===me&&<span style={{fontSize:10,color:T.txt3,fontWeight:500}}> · você</span>}</span>
-                    <span style={{fontSize:10,color:T.txt3}}>{p.exact} exatos · {p.win} vencedores</span>
-                    <span style={{fontSize:16,fontWeight:950,color:T.txt1,minWidth:24,textAlign:'right'}}>{p.pts}</span>
-                  </div>
-                ))}
-              </div>
-            </details>
-          ))}
-        </>
-      )}
-
-      {matches.filter(m=>m.result?.home!==''&&m.result?.home!==undefined).length>0&&(
-        <>
-          <SectionTitle title="Comparativo por jogo" text="Depois do apito inicial, os palpites deixam de ser segredo."/>
-          {matches.filter(m=>m.result&&m.result.home!=='').map(m=>(
-            <div key={m.id} className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:14,marginBottom:8,overflow:'hidden',boxShadow:shadow}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:T.bg,borderBottom:'1px solid '+T.border,fontSize:12,gap:10}}>
-                <span style={{color:T.txt2,fontWeight:800}}>{fl(m.home)} {m.home}</span>
-                <span style={{fontWeight:950,color:T.gold,fontSize:16}}>{m.result.home}-{m.result.away}</span>
-                <span style={{color:T.txt2,fontWeight:800,textAlign:'right'}}>{m.away} {fl(m.away)}</span>
-              </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:6,padding:'12px 14px'}}>
-                {board.map(p=>{
-                  const pp=(preds[p.uid]||{})[m.id];
-                  const x=pp?calcPts(pp,m.result):null;
-                  return <span key={p.uid} style={{fontSize:11,fontWeight:700,padding:'4px 10px',borderRadius:999,background:x===7?T.okBg:(x===4||x===3)?T.halfBg:x===1?'#DBEAFE':x===0?T.errBg:T.bg,color:x===7?T.ok:(x===4||x===3)?T.half:x===1?'#1D4ED8':x===0?T.err:T.txt3,border:'1px solid '+T.border}}>{p.name}: {pp&&pp.home!==''?pp.home+'×'+pp.away:'-'}</span>;
-                })}
-              </div>
-            </div>
-          ))}
-        </>
-      )}
-      <div style={{height:88}}/>
+      <div style={{display:'flex',alignItems:'flex-end',gap:16,marginBottom:22,flexWrap:'wrap'}}><div style={{flex:1,minWidth:260}}><div style={{fontSize:13,color:T.txt3,marginBottom:8}}>Classificação</div><h1 style={{fontSize:30,lineHeight:1.1,color:T.txt1,letterSpacing:-.8,marginBottom:8}}>Ranking</h1><p style={{fontSize:15,color:T.txt2,lineHeight:1.6,maxWidth:720}}>Classificação geral com jogos, classificados e pódio.</p></div><button className="pill" onClick={copyRanking} style={{padding:'10px 14px',borderRadius:12,border:'1px solid '+T.accentMd,background:T.card,color:T.accent,fontSize:12,fontWeight:900,cursor:'pointer'}}>📋 Copiar pro WhatsApp</button></div>
+      <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,boxShadow:shadow,overflow:'hidden',marginBottom:18}}><div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',minWidth:1180}}><thead><tr style={{background:'#00732E',color:'#fff'}}><th style={{padding:'12px',fontSize:12,textAlign:'left'}}>#</th><th style={{padding:'12px',fontSize:12,textAlign:'left'}}>Participante</th><th style={{padding:'12px 8px',fontSize:12,textAlign:'center'}}>🎯</th><th style={{padding:'12px 8px',fontSize:12,textAlign:'center'}}>Grupos</th><th style={{padding:'12px 8px',fontSize:12,textAlign:'center'}}>Elim.</th>{BRACKET_PHASES.map(phase=><th key={phase.key} style={{padding:'12px 8px',fontSize:12,textAlign:'center'}}>{phase.short}</th>)}<th style={{padding:'12px 8px',fontSize:12,textAlign:'center'}}>🏆</th><th style={{padding:'12px 8px',fontSize:12,textAlign:'center'}}>🥈</th><th style={{padding:'12px 8px',fontSize:12,textAlign:'center'}}>🥉</th><th style={{padding:'12px',fontSize:12,textAlign:'right'}}>Total</th></tr></thead><tbody>{board.map((p,i)=><tr key={p.uid} style={{background:p.uid===me?'#F0FDF4':i===0?'#FFFBEB':'#fff',borderBottom:'1px solid '+T.border}}><td style={{padding:'12px',fontSize:13,fontWeight:900,color:i<3?T.gold:T.txt3}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</td><td style={{padding:'12px'}}><div style={{fontSize:14,fontWeight:900,color:p.uid===me?T.accent:T.txt1}}>{p.name}{p.uid===me&&<span style={{fontSize:11,color:T.txt3,fontWeight:500}}> · você</span>}</div><div style={{fontSize:10,color:T.txt3,marginTop:2}}>{p.gamePts} jogos · {p.classifiedPts} classificados · {p.podiumPts} pódio</div></td><td style={{padding:'12px 8px',textAlign:'center',fontWeight:900,color:T.ok}}>{p.exact}</td><td style={{padding:'12px 8px',textAlign:'center',fontWeight:900}}>{p.groupPts}</td><td style={{padding:'12px 8px',textAlign:'center',fontWeight:900}}>{p.elimPts}</td>{BRACKET_PHASES.map(phase=><td key={phase.key} style={{padding:'12px 8px',textAlign:'center',fontWeight:900,color:p.bracket.phaseScores[phase.key]?.pts?T.accent:T.txt3}}>{p.bracket.phaseScores[phase.key]?.pts||0}</td>)}<td style={{padding:'12px 8px',textAlign:'center',fontWeight:900,color:p.podium.champHit?T.gold:T.txt3}}>{p.podium.champHit?CHAMP_PTS:0}</td><td style={{padding:'12px 8px',textAlign:'center',fontWeight:900,color:p.podium.viceHit?T.gold:T.txt3}}>{p.podium.viceHit?VICE_PTS:0}</td><td style={{padding:'12px 8px',textAlign:'center',fontWeight:900,color:p.podium.thirdHit?T.gold:T.txt3}}>{p.podium.thirdHit?THIRD_PTS:0}</td><td style={{padding:'12px',textAlign:'right',fontSize:22,fontWeight:950,color:T.txt1}}>{p.pts}</td></tr>)}</tbody></table></div>{board.length===0&&<div style={{padding:'28px',fontSize:13,color:T.txt3,textAlign:'center'}}>Nenhum participante com palpite ainda.</div>}</div>
+      <SectionTitle title="Ranking por dia" text="Recortes diários aparecem quando houver jogo com resultado lançado."/>
+      {dailyBoards.length>0?dailyBoards.map(group=><details key={group.key} style={{marginBottom:10}}><summary style={{listStyle:'none',cursor:'pointer',background:T.card,border:'1px solid '+T.border,borderRadius:14,padding:'13px 15px',boxShadow:shadow,display:'flex',alignItems:'center',gap:12}}><div style={{flex:1}}><div style={{fontSize:13,fontWeight:950,color:T.txt1,textTransform:'capitalize'}}>{group.label}</div><div style={{fontSize:11,color:T.txt3,marginTop:2}}>{group.matches.length} jogo{group.matches.length!==1?'s':''} com resultado</div></div><span style={{fontSize:16,color:T.txt3}}>⌄</span></summary><div style={{background:T.card,border:'1px solid '+T.border,borderTop:'none',borderRadius:'0 0 14px 14px',overflow:'hidden'}}>{group.board.slice(0,8).map((p,i)=><div key={p.uid} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px',borderTop:i?'1px solid '+T.border:'none',background:p.uid===me?T.accentLt:'#fff'}}><span style={{width:28,fontSize:13,fontWeight:950,color:i<3?T.gold:T.txt3}}>{i+1}</span><span style={{flex:1,fontSize:13,fontWeight:900,color:p.uid===me?T.accent:T.txt1}}>{p.name}{p.uid===me&&<span style={{fontSize:10,color:T.txt3,fontWeight:600}}> · você</span>}</span><span style={{fontSize:11,color:T.txt3}}>🎯 {p.exact}</span><strong style={{fontSize:16,color:T.txt1}}>{p.pts} pts</strong></div>)}</div></details>):<div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'24px',boxShadow:shadow,textAlign:'center',color:T.txt2,fontSize:13}}>O ranking diário aparece assim que algum resultado for registrado.</div>}
+      <div style={{fontSize:11,color:T.txt3,lineHeight:1.6}}>Desempate: total → pontos em jogos → classificados → pódio → placares exatos → vencedores → ordem alfabética.</div><div style={{height:88}}/>
     </div>
   );
 
   const TabRules=(
-    <div style={{padding:'28px 14px 72px',maxWidth:1120,margin:'0 auto'}}>
-      <div style={{marginBottom:22}}>
-        <div style={{fontSize:13,color:T.txt3,marginBottom:8}}>Regulamento</div>
-        <h1 style={{fontSize:30,lineHeight:1.1,color:T.txt1,letterSpacing:-.8,marginBottom:8}}>Como o bolão funciona</h1>
-        <p style={{fontSize:15,color:T.txt2,lineHeight:1.6,maxWidth:760}}>Regras simples, travas automáticas e desempate transparente para ninguém precisar discutir no grupo.</p>
-      </div>
-
-      <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:18}}>
-        <StatTile value="7" label="placar exato" color={T.ok} bg={T.okBg}/>
-        <StatTile value="4/3" label="vencedor/empate" color={T.half} bg={T.halfBg}/>
-        <StatTile value={CHAMP_PTS} label="campeão" color={T.gold} bg={T.goldBg}/>
-        <StatTile value="0" label="erro" color={T.err} bg={T.errBg}/>
-      </div>
-
-      <div style={{display:'grid',gridTemplateColumns:'minmax(0,1.1fr) minmax(300px,.9fr)',gap:14}}>
-        <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
-          <SectionTitle title="Pontuação" text="O placar exato é o que realmente abre vantagem."/>
-          {[
-            ['⭐','Placar exato','Acertou o placar completo do jogo: 7 pontos.'],
-            ['✓','Vencedor + gol','Acertou o vencedor/empate e os gols de um dos times: 4 pontos.'],
-            ['✓','Vencedor ou empate','Acertou apenas o vencedor/empate: 3 pontos.'],
-            ['⚽','Gol de um time','Errou o vencedor, mas acertou os gols de um dos times: 1 ponto.'],
-            ['🏆','Campeão, vice e 3º','Campeão vale '+CHAMP_PTS+', vice '+VICE_PTS+' e terceiro '+THIRD_PTS+' pontos.'],
-            ['×','Erro','Errou o vencedor/empate: 0 ponto.']
-          ].map((row,idx)=>(
-            <div key={row[1]} style={{display:'flex',gap:12,padding:'13px 0',borderTop:idx?'1px solid '+T.border:'none'}}>
-              <div style={{width:34,height:34,borderRadius:12,background:idx===0?T.okBg:(idx===1||idx===2)?T.halfBg:idx===3?'#DBEAFE':idx===4?T.goldBg:T.errBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>{row[0]}</div>
-              <div>
-                <div style={{fontSize:14,fontWeight:900,color:T.txt1}}>{row[1]}</div>
-                <div style={{fontSize:12,color:T.txt2,lineHeight:1.55,marginTop:2}}>{row[2]}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
-          <SectionTitle title="Travas e privacidade" text="A parte que mantém o jogo justo."/>
-          {[
-            ['⏱','Fase de grupos','Todos os palpites da fase de grupos bloqueiam no início do primeiro jogo da Copa.'],
-            ['🏆','Campeão','Não pode criar nem alterar após o início do primeiro jogo da Copa.'],
-            ['👀','Sem spoiler','Antes do jogo começar, os palpites dos outros ficam ocultos.'],
-            ['⚖','Desempate','Pontos, exatos, vencedores, campeão, menos erros e ordem alfabética.']
-          ].map((row,idx)=>(
-            <div key={row[1]} style={{display:'flex',gap:12,padding:'13px 0',borderTop:idx?'1px solid '+T.border:'none'}}>
-              <div style={{width:34,height:34,borderRadius:12,background:T.bg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>{row[0]}</div>
-              <div>
-                <div style={{fontSize:14,fontWeight:900,color:T.txt1}}>{row[1]}</div>
-                <div style={{fontSize:12,color:T.txt2,lineHeight:1.55,marginTop:2}}>{row[2]}</div>
-              </div>
-            </div>
-          ))}
-          <div style={{marginTop:12,padding:'12px',borderRadius:14,background:isAdmin?T.accentLt:T.bg,border:'1px solid '+(isAdmin?T.accentMd:T.border),fontSize:12,color:isAdmin?T.accent:T.txt3,lineHeight:1.5}}>
-            Status admin: <strong>{isAdmin?'você é admin':'usuário comum'}</strong>.
-            {!isAdmin&&Object.keys(adminIds).length===0&&(
-              <button onClick={claimFirstAdmin} style={{marginLeft:8,padding:'5px 10px',borderRadius:10,border:'1px solid '+T.border,background:T.card,color:T.txt2,fontSize:11,fontWeight:800,cursor:'pointer'}}>Tornar-me primeiro admin</button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <details style={{marginTop:14,background:T.card,border:'1px solid '+T.border,borderRadius:18,boxShadow:shadow,overflow:'hidden'}}>
-        <summary style={{listStyle:'none',cursor:'pointer',padding:'15px 18px',display:'flex',alignItems:'center',gap:12}}>
-          <div style={{width:36,height:36,borderRadius:12,background:'#DBEAFE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:17}}>🔐</div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:14,fontWeight:900,color:T.txt1}}>Regras Firebase</div>
-            <div style={{fontSize:11,color:T.txt3,marginTop:2}}>Área técnica para colar no console do Firebase, se precisar.</div>
-          </div>
-          <span style={{fontSize:16,color:T.txt3}}>⌄</span>
-        </summary>
-        <pre style={{fontSize:10,whiteSpace:'pre-wrap',background:T.bg,padding:14,borderTop:'1px solid '+T.border,color:T.txt2,overflowX:'auto'}}>
-          {[
-            '{',
-            '  "rules": {',
-            '    "bolao2026": {',
-            '      ".read": "auth != null",',
-            '      "participants": { "$uid": { ".write": "auth != null && auth.uid === $uid" } },',
-            '      "predictions": { "$uid": { ".write": "auth != null && auth.uid === $uid" } },',
-            '      "champPreds": { "$uid": { ".write": "auth != null && auth.uid === $uid && now < '+CHAMP_RULE_LOCK_TS+'" } },',
-            '      "matches": { ".write": "auth != null && root.child(\'bolao2026/admins\').child(auth.uid).val() === true" },',
-            '      "champWinner": { ".write": "auth != null && root.child(\'bolao2026/admins\').child(auth.uid).val() === true" },',
-            '      "audit": { "$logId": { ".write": "auth != null && root.child(\'bolao2026/admins\').child(auth.uid).val() === true" } },',
-            '      "admins": { ".write": false }',
-            '    }',
-            '  }',
-            '}'
-          ].join('\n')}
-        </pre>
-      </details>
-      <div style={{height:88}}/>
-    </div>
+    <div style={{padding:'28px 14px 72px',maxWidth:1120,margin:'0 auto'}}><div style={{marginBottom:22}}><div style={{fontSize:13,color:T.txt3,marginBottom:8}}>Regulamento</div><h1 style={{fontSize:30,lineHeight:1.1,color:T.txt1,letterSpacing:-.8,marginBottom:8}}>Como o bolão funciona</h1><p style={{fontSize:15,color:T.txt2,lineHeight:1.6,maxWidth:760}}>Regras alinhadas ao Nosso Bolão 2026.</p></div><div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:18}}><StatTile value="7" label="placar exato" color={T.ok} bg={T.okBg}/><StatTile value="4/3" label="vencedor" color={T.half} bg={T.halfBg}/><StatTile value="1" label="gol de um time" color="#1D4ED8" bg="#DBEAFE"/><StatTile value={CHAMP_PTS} label="campeão" color={T.gold} bg={T.goldBg}/></div><div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>{[['⭐','Placar exato','7 pontos.'],['✓','Vencedor + gol','4 pontos.'],['✓','Vencedor ou empate','3 pontos.'],['⚽','Gol de um time','1 ponto.'],['🏆','Pódio','Campeão 25, vice 20 e terceiro 15.'],['🔢','Classificados','2ª fase 2, oitavas 4, quartas 6, semis 8 e finalistas 14 pontos por time correto.'],['⏱','Prazos','Fase de grupos, classificados e pódio travam no início da Copa; eliminatórias travam por fase.']].map((row,idx)=><div key={row[1]} style={{display:'flex',gap:12,padding:'13px 0',borderTop:idx?'1px solid '+T.border:'none'}}><div style={{width:34,height:34,borderRadius:12,background:T.bg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>{row[0]}</div><div><div style={{fontSize:14,fontWeight:900,color:T.txt1}}>{row[1]}</div><div style={{fontSize:12,color:T.txt2,lineHeight:1.55,marginTop:2}}>{row[2]}</div></div></div>)}</div><details style={{marginTop:14,background:T.card,border:'1px solid '+T.border,borderRadius:18,boxShadow:shadow,overflow:'hidden'}}><summary style={{listStyle:'none',cursor:'pointer',padding:'15px 18px',display:'flex',alignItems:'center',gap:12}}><div style={{width:36,height:36,borderRadius:12,background:'#DBEAFE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:17}}>🔐</div><div style={{flex:1}}><div style={{fontSize:14,fontWeight:900,color:T.txt1}}>Regras Firebase novas</div><div style={{fontSize:11,color:T.txt3,marginTop:2}}>Inclua estes caminhos para pódio e chaveamento funcionarem.</div></div><span style={{fontSize:16,color:T.txt3}}>⌄</span></summary><pre style={{fontSize:10,whiteSpace:'pre-wrap',background:T.bg,padding:14,borderTop:'1px solid '+T.border,color:T.txt2,overflowX:'auto'}}>{[
+'"podiumPreds": { "$uid": { ".write": "auth != null && auth.uid === $uid && now < '+CHAMP_RULE_LOCK_TS+'" } },',
+'"bracketPreds": { "$uid": { ".write": "auth != null && auth.uid === $uid && now < '+CHAMP_RULE_LOCK_TS+'" } },',
+'"officialPodium": { ".write": "auth != null && root.child(\'bolao2026/admins\').child(auth.uid).val() === true" },',
+'"officialBracket": { ".write": "auth != null && root.child(\'bolao2026/admins\').child(auth.uid).val() === true" }'
+].join('\n')}</pre></details><div style={{height:88}}/></div>
   );
 
-  // ── Admin Tab ───────────────────────────────────────────────────────────────
   const TabAdmin=!isAdmin?null:(
-    <div style={{padding:'28px 14px 72px',maxWidth:1120,margin:'0 auto'}}>
-      <div style={{marginBottom:22}}>
-        <div style={{fontSize:13,color:T.txt3,marginBottom:8}}>Painel Admin</div>
-        <h1 style={{fontSize:30,lineHeight:1.1,color:T.txt1,letterSpacing:-.8,marginBottom:8}}>Controle do bolão</h1>
-        <p style={{fontSize:15,color:T.txt2,lineHeight:1.6,maxWidth:760}}>Atualize resultados, defina campeão oficial e gerencie apenas participantes reais registrados.</p>
-      </div>
-
-      <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:18}}>
-        <StatTile value={matches.length} label="jogos" color={T.txt1} bg={T.bg}/>
-        <StatTile value={resultMatchCount} label="resultados" color={T.accent} bg={T.accentLt}/>
-        <StatTile value={parts.length} label="participantes" color="#1D4ED8" bg="#DBEAFE"/>
-        <StatTile value={audit.length} label="ações recentes" color={T.gold} bg={T.goldBg}/>
-      </div>
-
-      <div style={{display:'grid',gridTemplateColumns:'minmax(280px,.8fr) minmax(0,1.2fr)',gap:14,alignItems:'start'}}>
-        <div style={{display:'flex',flexDirection:'column',gap:14}}>
-          <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
-            <SectionTitle title="Campeão oficial" text="Use só quando a Copa terminar."/>
-            <div style={{display:'flex',gap:8}}>
-              <select className="inp" style={{...inpSt,flex:1}} value={adminChampInput} onChange={e=>setAdminChampInput(e.target.value)}>
-                <option value="">Selecionar campeão...</option>
-                {ALL_TEAMS.map(t=><option key={t} value={t}>{fl(t)} {t}</option>)}
-              </select>
-              <button className="btn-acc" style={{...btnAcc,padding:'9px 16px',whiteSpace:'nowrap'}} onClick={saveChampWinner}>Salvar</button>
-            </div>
-            {champWinner&&<p style={{fontSize:12,color:T.ok,marginTop:10,fontWeight:900}}>✓ Campeão oficial: {fl(champWinner)} {champWinner}</p>}
-          </div>
-
-          <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
-            <SectionTitle title="Adicionar partida" text="Para ajustes manuais fora do CSV."/>
-            <div style={{display:'flex',flexDirection:'column',gap:8}}>
-              <div style={{display:'flex',gap:8}}>
-                <select className="inp" style={{...inpSt,flex:1}} value={newM.ph} onChange={e=>setNewM(n=>({...n,ph:e.target.value}))}>{PHASES.map(p=><option key={p}>{p}</option>)}</select>
-                {newM.ph==='Grupos'&&<select className="inp" style={{...inpSt,width:80}} value={newM.gr} onChange={e=>setNewM(n=>({...n,gr:e.target.value}))}>{GROUPS.map(g=><option key={g}>{g}</option>)}</select>}
-              </div>
-              <input className="inp" style={inpSt} placeholder="Time Casa" value={newM.home} onChange={e=>setNewM(n=>({...n,home:e.target.value}))}/>
-              <input className="inp" style={inpSt} placeholder="Time Fora" value={newM.away} onChange={e=>setNewM(n=>({...n,away:e.target.value}))}/>
-              <input className="inp" type="datetime-local" style={inpSt} value={newM.dt} onChange={e=>setNewM(n=>({...n,dt:e.target.value}))}/>
-              <input className="inp" style={inpSt} placeholder="Sede" value={newM.venue} onChange={e=>setNewM(n=>({...n,venue:e.target.value}))}/>
-              <button className="btn-acc" style={{...btnAcc,width:'100%'}} onClick={addMatch}>Adicionar partida</button>
-            </div>
-          </div>
-
-          <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
-            <SectionTitle title="Importar CSV" text="Colunas mínimas: home, away, dt."/>
-            <input type="file" accept=".csv,text/csv" onChange={onCsvFile} style={{marginBottom:10,fontSize:12,color:T.txt2}}/>
-            <div style={{fontSize:11,color:T.txt3,lineHeight:1.5}}>{csvImporting?'Importando...':'Opcionais: id, ph, gr, venue. Use data ISO, exemplo: 2026-06-11T16:00:00-03:00.'}</div>
-          </div>
-        </div>
-
-        <div style={{display:'flex',flexDirection:'column',gap:14}}>
-          <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
-            <SectionTitle title="Registrar resultados" text="Resultados liberam pontos e comparativos por jogo."/>
-            <div style={{maxHeight:520,overflow:'auto',paddingRight:4}}>
-              {matches.map(m=>(
-                <div key={m.id} style={{display:'flex',alignItems:'center',padding:'9px 0',borderBottom:'1px solid '+T.border,flexWrap:'wrap',gap:8}}>
-                  <span style={{fontSize:12,color:T.txt2,flex:1,minWidth:220}}>
-                    <span style={{color:T.accent,fontWeight:900,marginRight:6}}>{m.ph==='Grupos'?'Grupo '+m.gr:m.ph}</span>
-                    {fl(m.home)} {m.home} × {m.away} {fl(m.away)}
-                    <span style={{color:T.txt3,marginLeft:6}}>{fDate(m.dt)}</span>
-                  </span>
-                  <div style={{display:'flex',alignItems:'center',gap:6}}>
-                    <input style={{width:42,padding:'6px',textAlign:'center',borderRadius:8,border:'1.5px solid '+T.border,background:T.bg,color:T.txt1,fontSize:15,fontWeight:900,outline:'none'}} type="number" min="0" max="20" placeholder="-" value={ri[m.id]?.home||''} onChange={e=>setRi(r=>({...r,[m.id]:{...r[m.id],home:e.target.value}}))}/>
-                    <span style={{color:T.txt3,fontWeight:900}}>-</span>
-                    <input style={{width:42,padding:'6px',textAlign:'center',borderRadius:8,border:'1.5px solid '+T.border,background:T.bg,color:T.txt1,fontSize:15,fontWeight:900,outline:'none'}} type="number" min="0" max="20" placeholder="-" value={ri[m.id]?.away||''} onChange={e=>setRi(r=>({...r,[m.id]:{...r[m.id],away:e.target.value}}))}/>
-                    <button className="btn-acc" style={{...btnAcc,padding:'6px 11px',fontSize:11}} onClick={()=>saveResult(m.id)}>OK</button>
-                    {m.result?.home!==''&&m.result?.home!==undefined&&<span style={{fontSize:10,color:T.ok,fontWeight:900}}>✓ {m.result.home}-{m.result.away}</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
-            <SectionTitle title={'Participantes reais ('+parts.length+')'} text="Somente quem registrou nome aparece aqui."/>
-            {parts.length===0&&<div style={{fontSize:12,color:T.txt3}}>Nenhum participante registrado ainda.</div>}
-            <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-              {parts.map(p=>(
-                <div key={p} style={{display:'flex',alignItems:'center',gap:6,background:T.accentLt,border:'1px solid '+T.accentMd,borderRadius:999,padding:'6px 7px 6px 12px'}}>
-                  <span style={{fontSize:12,fontWeight:900,color:T.accent}}>{getName(p)}</span>
-                  {p!==me&&<button onClick={()=>removeParticipant(p)} style={{width:20,height:20,borderRadius:'50%',border:'none',background:'rgba(220,38,38,.1)',color:T.err,cursor:'pointer',fontSize:12,display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1,fontWeight:900}}>×</button>}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
-            <SectionTitle title="Histórico admin" text="Últimas ações registradas."/>
-            {audit.length===0&&<div style={{fontSize:12,color:T.txt3}}>Sem ações registradas ainda.</div>}
-            {audit.slice(0,12).map(item=>(
-              <div key={item.id} style={{padding:'9px 0',borderBottom:'1px solid '+T.border,fontSize:11,color:T.txt2}}>
-                <strong style={{color:T.txt1}}>{item.action}</strong> · {item.name||item.uid} · {item.ts?new Date(item.ts).toLocaleString('pt-BR'):'agora'}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div style={{height:88}}/>
-    </div>
+    <div style={{padding:'28px 14px 72px',maxWidth:1120,margin:'0 auto'}}><div style={{marginBottom:22}}><div style={{fontSize:13,color:T.txt3,marginBottom:8}}>Painel Admin</div><h1 style={{fontSize:30,lineHeight:1.1,color:T.txt1,letterSpacing:-.8,marginBottom:8}}>Controle do bolão</h1><p style={{fontSize:15,color:T.txt2,lineHeight:1.6,maxWidth:760}}>Resultados, pódio oficial, classificados oficiais e participantes reais.</p></div><div style={{display:'grid',gridTemplateColumns:'minmax(280px,.8fr) minmax(0,1.2fr)',gap:14,alignItems:'start'}}><div style={{display:'flex',flexDirection:'column',gap:14}}><div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}><SectionTitle title="Pódio oficial" text="Define campeão, vice e 3º para pontuação."/>{[['Campeão','champ'],['Vice','vice'],['3º lugar','third']].map(item=><select key={item[1]} className="inp" style={{...inpSt,marginBottom:8}} value={officialPodiumInput[item[1]]||''} onChange={e=>setOfficialPodiumInput(p=>({...p,[item[1]]:e.target.value}))}><option value="">{item[0]}</option>{ALL_TEAMS.map(t=><option key={t} value={t}>{fl(t)} {t}</option>)}</select>)}<button className="btn-acc" style={{...btnAcc,width:'100%'}} onClick={saveOfficialPodium} disabled={saving==='officialPodium'}>{saving==='officialPodium'?'Salvando...':'Salvar pódio oficial'}</button></div><div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}><SectionTitle title="Classificados oficiais" text="Preencha por fase para pontuar o chaveamento."/>{BRACKET_PHASES.map(phase=><details key={phase.key} style={{marginBottom:8}}><summary style={{cursor:'pointer',fontSize:13,fontWeight:900,color:T.txt1,padding:'8px 0'}}>{phase.label} · {officialBracketInput[phase.key].filter(Boolean).length}/{phase.count}</summary><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:6}}>{officialBracketInput[phase.key].map((value,idx)=><select key={idx} className="inp" style={{...inpSt,padding:'7px 8px',fontSize:12}} value={value} onChange={e=>setOfficialBracketInput(prev=>{const next=normalizeBracket(prev);next[phase.key]=[...next[phase.key]];next[phase.key][idx]=e.target.value;return next;})}><option value="">{idx+1}. Time</option>{ALL_TEAMS.map(t=><option key={t} value={t}>{fl(t)} {t}</option>)}</select>)}</div></details>)}<button className="btn-acc" style={{...btnAcc,width:'100%'}} onClick={saveOfficialBracket} disabled={saving==='officialBracket'}>{saving==='officialBracket'?'Salvando...':'Salvar classificados oficiais'}</button></div></div><div style={{display:'flex',flexDirection:'column',gap:14}}><div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}><SectionTitle title="Registrar resultados" text="Resultados liberam pontos de placar."/><div style={{maxHeight:520,overflow:'auto',paddingRight:4}}>{matches.map(m=><div key={m.id} style={{display:'flex',alignItems:'center',padding:'9px 0',borderBottom:'1px solid '+T.border,flexWrap:'wrap',gap:8}}><span style={{fontSize:12,color:T.txt2,flex:1,minWidth:220}}><span style={{color:T.accent,fontWeight:900,marginRight:6}}>{m.ph==='Grupos'?'Grupo '+m.gr:m.ph}</span>{fl(m.home)} {m.home} × {m.away} {fl(m.away)}<span style={{color:T.txt3,marginLeft:6}}>{fDate(m.dt)}</span></span><div style={{display:'flex',alignItems:'center',gap:6}}><input style={{width:42,padding:'6px',textAlign:'center',borderRadius:8,border:'1.5px solid '+T.border,background:T.bg,color:T.txt1,fontSize:15,fontWeight:900,outline:'none'}} type="number" min="0" max="20" value={ri[m.id]?.home||''} onChange={e=>setRi(r=>({...r,[m.id]:{...r[m.id],home:e.target.value}}))}/><span style={{color:T.txt3,fontWeight:900}}>-</span><input style={{width:42,padding:'6px',textAlign:'center',borderRadius:8,border:'1.5px solid '+T.border,background:T.bg,color:T.txt1,fontSize:15,fontWeight:900,outline:'none'}} type="number" min="0" max="20" value={ri[m.id]?.away||''} onChange={e=>setRi(r=>({...r,[m.id]:{...r[m.id],away:e.target.value}}))}/><button className="btn-acc" style={{...btnAcc,padding:'6px 11px',fontSize:11}} onClick={()=>saveResult(m.id)}>OK</button></div></div>)}</div></div><div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}><SectionTitle title="Adicionar partida" text="Use para cadastrar jogos extras ou eliminatórias quando o chaveamento sair."/><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))',gap:8,marginBottom:8}}><input className="inp" style={inpSt} placeholder="Time casa" value={newM.home} onChange={e=>setNewM(m=>({...m,home:e.target.value}))}/><input className="inp" style={inpSt} placeholder="Time fora" value={newM.away} onChange={e=>setNewM(m=>({...m,away:e.target.value}))}/><select className="inp" style={inpSt} value={newM.ph} onChange={e=>setNewM(m=>({...m,ph:e.target.value,gr:e.target.value==='Grupos'?m.gr:''}))}><option>Grupos</option><option>32 avos</option><option>16 avos</option><option>Oitavas</option><option>Quartas</option><option>Semis</option><option>3º lugar</option><option>Final</option></select>{newM.ph==='Grupos'&&<select className="inp" style={inpSt} value={newM.gr} onChange={e=>setNewM(m=>({...m,gr:e.target.value}))}>{GROUPS.map(g=><option key={g}>{g}</option>)}</select>}<input className="inp" style={inpSt} type="datetime-local" value={newM.dt} onChange={e=>setNewM(m=>({...m,dt:e.target.value}))}/><input className="inp" style={inpSt} placeholder="Cidade/estádio" value={newM.venue} onChange={e=>setNewM(m=>({...m,venue:e.target.value}))}/></div><button className="btn-acc" style={{...btnAcc,width:'100%'}} onClick={addMatch}>Adicionar partida</button></div><div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}><SectionTitle title="Importar CSV" text="Colunas aceitas: id, home, away, dt, ph, gr, venue."/><input className="inp" style={{...inpSt,marginBottom:8}} type="file" accept=".csv,text/csv" onChange={e=>{const file=e.target.files?.[0]; if(!file) return; const reader=new FileReader(); reader.onload=ev=>importMatchesFromCsvText(String(ev.target?.result||'')); reader.readAsText(file); e.target.value='';}}/><button className="pill" style={{padding:'9px 12px',borderRadius:12,border:'1px solid '+T.border,background:T.bg,color:T.txt2,fontSize:11,fontWeight:900}} disabled>{csvImporting?'Importando...':'Importação segura por arquivo CSV'}</button></div><div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}><SectionTitle title="Auditoria recente" text="Últimas ações administrativas registradas."/>{audit.length?audit.slice(0,8).map((a,idx)=><div key={idx} style={{padding:'8px 0',borderTop:idx?'1px solid '+T.border:'none'}}><div style={{fontSize:12,fontWeight:900,color:T.txt1}}>{a.action||'ação'}</div><div style={{fontSize:10,color:T.txt3,marginTop:2}}>{a.byName||a.by||'admin'} · {a.at?new Date(a.at).toLocaleString('pt-BR'):'agora'}</div></div>):<div style={{fontSize:12,color:T.txt3}}>Nenhuma ação registrada ainda.</div>}</div><div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}><SectionTitle title={'Participantes reais ('+parts.length+')'} text="Somente quem registrou nome aparece aqui."/><div style={{display:'flex',flexWrap:'wrap',gap:8}}>{parts.map(p=><div key={p} style={{display:'flex',alignItems:'center',gap:6,background:T.accentLt,border:'1px solid '+T.accentMd,borderRadius:999,padding:'6px 7px 6px 12px'}}><span style={{fontSize:12,fontWeight:900,color:T.accent}}>{getName(p)}</span>{p!==me&&<button onClick={()=>removeParticipant(p)} style={{width:20,height:20,borderRadius:'50%',border:'none',background:'rgba(220,38,38,.1)',color:T.err,cursor:'pointer',fontSize:12,fontWeight:900}}>×</button>}</div>)}</div></div></div></div><div style={{height:88}}/></div>
   );
 
-  // ── General Predictions Tab ────────────────────────────────────────────────
   const TabGeneralPreds=(
     <div style={{padding:'28px 14px 72px',maxWidth:1120,margin:'0 auto'}}>
-      <div style={{display:'flex',alignItems:'flex-end',gap:16,marginBottom:22,flexWrap:'wrap'}}>
-        <div style={{flex:1,minWidth:260}}>
-          <div style={{fontSize:13,color:T.txt3,marginBottom:8}}>Palpites gerais</div>
-          <h1 style={{fontSize:30,lineHeight:1.1,color:T.txt1,letterSpacing:-.8,marginBottom:8}}>O que o grupo já enviou</h1>
-          <p style={{fontSize:15,color:T.txt2,lineHeight:1.6,maxWidth:760}}>Acompanhe participação, campeão e palpites por jogo sem revelar placares antes da hora. Transparência sem spoiler.</p>
-        </div>
-      </div>
-
-      <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:18}}>
-        <StatTile value={champPredCount} label="campeões enviados" color={T.gold} bg={T.goldBg}/>
-        <StatTile value={lockedMatchCount} label="jogos reveláveis" color="#1D4ED8" bg="#DBEAFE"/>
-        <StatTile value={resultMatchCount} label="com resultado" color={T.accent} bg={T.accentLt}/>
-        <StatTile value={parts.length} label="participantes" color={T.txt1} bg={T.bg}/>
-      </div>
-
-      <div id="champion-card" className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow,marginBottom:18}}>
-        <div style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:14}}>
-          <div style={{width:44,height:44,borderRadius:15,background:T.goldBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:22}}>🏆</div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:16,fontWeight:950,color:T.txt1}}>Chaveamento e Campeão</div>
-            <div style={{fontSize:12,color:T.txt2,lineHeight:1.55,marginTop:3}}>No site de referência esta etapa reúne classificados, finalistas e pódio. Aqui mantive o campeão funcional e deixei a estrutura pronta para evoluir sem quebrar seus dados atuais.</div>
-          </div>
-          <span style={{fontSize:11,fontWeight:900,color:champDone?T.accent:T.half,background:champDone?T.accentLt:T.halfBg,borderRadius:999,padding:'6px 10px'}}>{champDone?'Concluído':'Pendente'}</span>
-        </div>
-        {!champLocked?(
-          <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) auto',gap:8,marginBottom:12}}>
-            <select className="inp" style={{...inpSt,padding:'10px 12px'}} value={champInput} onChange={e=>setChampInput(e.target.value)}>
-              <option value="">Escolha o campeão...</option>
-              {ALL_TEAMS.map(t=><option key={t} value={t}>{fl(t)} {t}</option>)}
-            </select>
-            <button className="btn-acc" style={{...btnAcc,padding:'10px 18px',whiteSpace:'nowrap'}} onClick={saveChamp}>Salvar</button>
-          </div>
-        ):(
-          <div style={{fontSize:13,color:T.txt2,marginBottom:12}}>
-            {champPreds[me]?`Seu campeão: ${fl(champPreds[me])} ${champPreds[me]}`:'Sem palpite de campeão'}
-            {champWinner&&<span style={{marginLeft:8,fontWeight:800,color:champWinner===champPreds[me]?T.ok:T.err}}>{champWinner===champPreds[me]?`✓ Acertou! +${CHAMP_PTS}pts`:`✗ Campeão: ${fl(champWinner)} ${champWinner}`}</span>}
-          </div>
-        )}
-        <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
-          {[
-            ['Classificados','0/62','Previsão completa dos classificados por fase'],
-            ['Finalistas','em breve','Times que chegam à final da Copa'],
-            ['Pódio','campeão ativo',`Campeão ${CHAMP_PTS}, vice ${VICE_PTS}, 3º ${THIRD_PTS}`],
-          ].map(item=>(
-            <div key={item[0]} style={{background:T.bg,border:'1px solid '+T.border,borderRadius:14,padding:'12px'}}>
-              <div style={{fontSize:11,fontWeight:950,color:T.txt3,textTransform:'uppercase',letterSpacing:.5}}>{item[0]}</div>
-              <div style={{fontSize:16,fontWeight:950,color:T.txt1,marginTop:4}}>{item[1]}</div>
-              <div style={{fontSize:10,color:T.txt3,lineHeight:1.4,marginTop:4}}>{item[2]}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="lux-card" style={{background:'#F8FAFC',border:'1px solid '+T.border,borderRadius:18,padding:'16px',boxShadow:shadow,marginBottom:18,display:'flex',gap:12,alignItems:'flex-start'}}>
-        <div style={{width:42,height:42,borderRadius:14,background:'#DBEAFE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>👀</div>
-        <div>
-          <div style={{fontSize:15,fontWeight:950,color:T.txt1}}>Sem spoiler até ser justo</div>
-          <div style={{fontSize:13,color:T.txt2,lineHeight:1.6,marginTop:3}}>Antes da bola rolar, aparece só se cada pessoa já enviou ou ainda está devendo. Depois do início do jogo, o placar fica visível para comparação.</div>
-        </div>
-      </div>
-
-      <details open={champLocked} style={{background:T.card,border:'1px solid '+T.border,borderRadius:16,boxShadow:shadow,marginBottom:14,overflow:'hidden'}}>
-        <summary style={{listStyle:'none',cursor:'pointer',padding:'14px 16px',display:'flex',alignItems:'center',gap:12}}>
-          <div style={{width:40,height:40,borderRadius:14,background:T.goldBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0}}>🏆</div>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:14,fontWeight:950,color:T.txt1}}>Campeão da Copa</div>
-            <div style={{fontSize:11,color:T.txt3,marginTop:2}}>{champPredCount}/{parts.length} palpite{champPredCount!==1?'s':''} · {champLocked?'revelado':'oculto até '+champLockLabel}</div>
-          </div>
-          <span style={{fontSize:16,color:T.txt3}}>⌄</span>
-        </summary>
-        <div style={{borderTop:'1px solid '+T.border}}>
-          {parts.length===0&&<div style={{padding:'16px',fontSize:12,color:T.txt3,textAlign:'center'}}>Nenhum participante ainda.</div>}
-          {parts.map((p,i)=>{
-            const pick=champPreds[p];
-            const isMe=p===me;
-            const memberName=getName(p);
-            const correct=champWinner&&pick===champWinner;
-            return (
-              <div key={p} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 16px',background:isMe?'#F0FDF4':'transparent',borderBottom:i<parts.length-1?'1px solid '+T.border:'none'}}>
-                <div style={{width:32,height:32,borderRadius:'50%',background:isMe?T.accentLt:T.bg,border:'1.5px solid '+(isMe?T.accent:T.border),display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:900,color:isMe?T.accent:T.txt2,flexShrink:0}}>{memberName.charAt(0).toUpperCase()}</div>
-                <div style={{flex:1,minWidth:0}}>
-                  <span style={{fontSize:13,fontWeight:900,color:isMe?T.accent:T.txt1}}>{memberName}</span>
-                  {isMe&&<span style={{fontSize:10,color:T.txt3,marginLeft:4}}>você</span>}
-                </div>
-                {champLocked&&pick&&<span style={{fontSize:12,fontWeight:900,padding:'6px 10px',borderRadius:999,background:correct?T.okBg:champWinner?T.errBg:T.bg,color:correct?T.ok:champWinner?T.err:T.txt1,border:'1px solid '+(correct?T.accentMd:T.border)}}>{fl(pick)} {pick}{correct?' ✓':champWinner?' ×':''}</span>}
-                {champLocked&&!pick&&<span style={{fontSize:11,color:T.txt3,background:T.bg,border:'1px solid '+T.border,borderRadius:999,padding:'6px 10px'}}>sem palpite</span>}
-                {!champLocked&&pick&&<span style={{fontSize:11,fontWeight:900,color:T.accent,background:T.accentLt,border:'1px solid '+T.accentMd,borderRadius:999,padding:'6px 10px'}}>feito</span>}
-                {!champLocked&&!pick&&<span style={{fontSize:11,color:T.txt3,background:T.bg,border:'1px solid '+T.border,borderRadius:999,padding:'6px 10px'}}>faltando</span>}
-              </div>
-            );
-          })}
-        </div>
-      </details>
-
-      <SectionTitle title="Jogos por dia" text="Cada dia abre como lista suspensa; cada jogo abre o detalhe dos participantes."/>
-      {generalDayGroups.length===0&&(
-        <div style={{textAlign:'center',padding:'60px 0'}}>
-          <div style={{fontSize:40,marginBottom:12}}>🗓️</div>
-          <div style={{fontSize:14,color:T.txt2,lineHeight:1.6}}>Nenhum jogo cadastrado ainda.</div>
-        </div>
-      )}
-      {generalDayGroups.map((group,idx)=>(
-        <details key={group.key} open={idx===0||group.matches.some(m=>isToday(m.dt))} style={{marginBottom:10}}>
-          <summary style={{listStyle:'none',cursor:'pointer',background:T.card,border:'1px solid '+T.border,borderRadius:14,padding:'13px 15px',boxShadow:shadow,display:'flex',alignItems:'center',gap:12}}>
-            <div style={{flex:1}}>
-              <div style={{fontSize:13,fontWeight:950,color:T.txt1,textTransform:'capitalize'}}>{group.label}</div>
-              <div style={{fontSize:11,color:T.txt3,marginTop:2}}>{group.matches.length} jogo{group.matches.length!==1?'s':''}</div>
-            </div>
-            <span style={{fontSize:16,color:T.txt3}}>⌄</span>
-          </summary>
-          <div style={{paddingTop:10}}>
-            {group.matches.map(m=>{
-              const st=started(m.dt);
-              const hasR=m.result&&m.result.home!=='';
-              const predCount=parts.filter(p=>(preds[p]||{})[m.id]?.home!=='').length;
-              return (
-                <details key={m.id} open={isToday(m.dt)} style={{background:T.card,border:'1px solid '+T.border,borderRadius:14,boxShadow:shadow,marginBottom:8,overflow:'hidden'}}>
-                  <summary style={{listStyle:'none',cursor:'pointer',padding:'13px 15px',display:'flex',alignItems:'center',gap:10}}>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:13,fontWeight:950,color:T.txt1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{fl(m.home)} {m.home} × {m.away} {fl(m.away)}</div>
-                      <div style={{fontSize:11,color:T.txt3,marginTop:2}}>{fTime(m.dt)} · {m.ph==='Grupos'?'Grupo '+m.gr:m.ph} · {predCount}/{parts.length} palpites</div>
-                    </div>
-                    {hasR&&<span style={{fontSize:13,fontWeight:950,color:T.gold,background:T.goldBg,padding:'6px 10px',borderRadius:999}}>{m.result.home}-{m.result.away}</span>}
-                    {!hasR&&<span style={{fontSize:10,fontWeight:900,color:st?'#1D4ED8':T.txt3,background:st?'#DBEAFE':T.bg,padding:'6px 10px',borderRadius:999}}>{st?'em jogo':'pré-jogo'}</span>}
-                  </summary>
-                  <div style={{borderTop:'1px solid '+T.border}}>
-                    {parts.length===0&&<div style={{padding:'14px',fontSize:12,color:T.txt3,textAlign:'center'}}>Nenhum participante ainda.</div>}
-                    {parts.map((p,i)=>{
-                      const pp=(preds[p]||{})[m.id];
-                      const hasPred=pp&&pp.home!=='';
-                      const pts=hasPred?calcPts(pp,m.result):null;
-                      const isMe=p===me;
-                      const memberName=getName(p);
-                      return (
-                        <div key={p} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:isMe?'#F0FDF4':'transparent',borderBottom:i<parts.length-1?'1px solid '+T.border:'none'}}>
-                          <div style={{width:30,height:30,borderRadius:'50%',background:isMe?T.accentLt:T.bg,border:'1.5px solid '+(isMe?T.accent:T.border),display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:900,color:isMe?T.accent:T.txt2,flexShrink:0}}>{memberName.charAt(0).toUpperCase()}</div>
-                          <div style={{flex:1,minWidth:0}}><span style={{fontSize:13,fontWeight:800,color:isMe?T.accent:T.txt1}}>{memberName}</span>{isMe&&<span style={{fontSize:10,color:T.txt3,marginLeft:4}}>você</span>}</div>
-                          {st&&hasPred&&<span style={{fontSize:12,fontWeight:900,padding:'6px 10px',borderRadius:999,background:pts===7?T.okBg:(pts===4||pts===3)?T.halfBg:pts===1?'#DBEAFE':pts===0?T.errBg:T.bg,color:pts===7?T.ok:(pts===4||pts===3)?T.half:pts===1?'#1D4ED8':pts===0?T.err:T.txt1,border:'1px solid '+T.border}}>{pp.home}×{pp.away}{pts===7?' ⭐':(pts===4||pts===3)?' ✓':pts===1?' ⚽':pts===0?' ×':''}</span>}
-                          {st&&!hasPred&&<span style={{fontSize:11,color:T.txt3,background:T.bg,border:'1px solid '+T.border,borderRadius:999,padding:'6px 10px'}}>sem palpite</span>}
-                          {!st&&hasPred&&<span style={{fontSize:11,fontWeight:900,color:T.accent,background:T.accentLt,border:'1px solid '+T.accentMd,borderRadius:999,padding:'6px 10px'}}>feito</span>}
-                          {!st&&!hasPred&&<span style={{fontSize:11,color:T.txt3,background:T.bg,border:'1px solid '+T.border,borderRadius:999,padding:'6px 10px'}}>faltando</span>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </details>
-              );
-            })}
-          </div>
-        </details>
-      ))}
-      <div style={{height:88}}/>
+      <div style={{display:'flex',alignItems:'flex-end',gap:16,marginBottom:22,flexWrap:'wrap'}}><div style={{flex:1,minWidth:260}}><div style={{fontSize:13,color:T.txt3,marginBottom:8}}>Palpites gerais</div><h1 style={{fontSize:30,lineHeight:1.1,color:T.txt1,letterSpacing:-.8,marginBottom:8}}>Chaveamento, pódio e grupo</h1><p style={{fontSize:15,color:T.txt2,lineHeight:1.6,maxWidth:760}}>Veja participação, salve seu chaveamento e compare palpites quando for justo.</p></div></div>
+      <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:18}}><StatTile value={bracketFilled+'/'+bracketTotal} label="classificados" color={bracketDone?T.accent:T.half} bg={bracketDone?T.accentLt:T.halfBg}/><StatTile value={podiumFilled+'/3'} label="pódio" color={podiumDone?T.accent:T.half} bg={podiumDone?T.accentLt:T.halfBg}/><StatTile value={champPredCount} label="campeões enviados" color={T.gold} bg={T.goldBg}/><StatTile value={parts.length} label="participantes" color={T.txt1} bg={T.bg}/></div>
+      <div id="champion-card" className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow,marginBottom:18}}><div style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:14}}><div style={{width:44,height:44,borderRadius:15,background:T.goldBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:22}}>🏆</div><div style={{flex:1}}><div style={{fontSize:16,fontWeight:950,color:T.txt1}}>Chaveamento e Pódio</div><div style={{fontSize:12,color:T.txt2,lineHeight:1.55,marginTop:3}}>Preencha campeão, vice, 3º e classificados de cada fase antes do início da Copa.</div></div></div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:10,marginBottom:14}}>{[['Campeão','champ',CHAMP_PTS],['Vice-campeão','vice',VICE_PTS],['3º lugar','third',THIRD_PTS]].map(item=><div key={item[1]} style={{background:T.bg,border:'1px solid '+T.border,borderRadius:14,padding:'12px'}}><div style={{fontSize:11,fontWeight:950,color:T.txt3,textTransform:'uppercase',letterSpacing:.5,marginBottom:7}}>{item[0]} · {item[2]} pts</div>{!champLocked?<select className="inp" style={{...inpSt,padding:'9px 10px'}} value={podiumInput[item[1]]||''} onChange={e=>{const next={...podiumInput,[item[1]]:e.target.value};setPodiumInput(next);if(item[1]==='champ') setChampInput(e.target.value);}}><option value="">Selecionar...</option>{ALL_TEAMS.map(t=><option key={t} value={t}>{fl(t)} {t}</option>)}</select>:<div style={{fontSize:13,fontWeight:900,color:T.txt1}}>{podiumFor(me)[item[1]]?fl(podiumFor(me)[item[1]])+' '+podiumFor(me)[item[1]]:'-'}</div>}</div>)}</div>{!champLocked&&<button className="btn-acc" style={{...btnAcc,width:'100%',marginBottom:14}} onClick={savePodium} disabled={saving==='podium'}>{saving==='podium'?'Salvando pódio...':'Salvar pódio'}</button>}<details open={!bracketDone&&!champLocked} style={{background:T.bg,border:'1px solid '+T.border,borderRadius:14,overflow:'hidden'}}><summary style={{listStyle:'none',cursor:'pointer',padding:'13px 14px',display:'flex',alignItems:'center',gap:10}}><div style={{flex:1}}><div style={{fontSize:14,fontWeight:950,color:T.txt1}}>Previsão de classificados</div><div style={{fontSize:11,color:T.txt3,marginTop:2}}>{bracketFilled}/{bracketTotal} preenchidos</div></div><span style={{fontSize:16,color:T.txt3}}>⌄</span></summary><div style={{borderTop:'1px solid '+T.border,padding:'12px'}}>{BRACKET_PHASES.map(phase=><details key={phase.key} open={phase.key==='r32'} style={{background:T.card,border:'1px solid '+T.border,borderRadius:12,overflow:'hidden',marginBottom:10}}><summary style={{listStyle:'none',cursor:'pointer',padding:'11px 12px',display:'flex',alignItems:'center',gap:10}}><div style={{flex:1}}><div style={{fontSize:13,fontWeight:950,color:T.txt1}}>{phase.label}</div><div style={{fontSize:10,color:T.txt3,marginTop:2}}>{bracketInput[phase.key].filter(Boolean).length}/{phase.count} · {phase.pts} pts por time correto</div></div><span style={{fontSize:15,color:T.txt3}}>⌄</span></summary><div style={{borderTop:'1px solid '+T.border,padding:'10px',display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:8}}>{bracketInput[phase.key].map((value,idx)=><select key={idx} disabled={champLocked} className="inp" style={{...inpSt,padding:'8px 9px',fontSize:12}} value={value} onChange={e=>setBracketInput(prev=>{const next=normalizeBracket(prev);next[phase.key]=[...next[phase.key]];next[phase.key][idx]=e.target.value;return next;})}><option value="">{idx+1}. Selecionar</option>{ALL_TEAMS.map(t=><option key={t} value={t}>{fl(t)} {t}</option>)}</select>)}</div></details>)}{!champLocked&&<button className="btn-acc" style={{...btnAcc,width:'100%'}} onClick={saveBracket} disabled={saving==='bracket'}>{saving==='bracket'?'Salvando chaveamento...':'Salvar classificados'}</button>}</div></details></div>
+      <SectionTitle title="Jogos por dia" text="Cada jogo abre o detalhe dos participantes quando for permitido."/>{generalDayGroups.map((group,idx)=><details key={group.key} open={idx===0||group.matches.some(m=>isToday(m.dt))} style={{marginBottom:10}}><summary style={{listStyle:'none',cursor:'pointer',background:T.card,border:'1px solid '+T.border,borderRadius:14,padding:'13px 15px',boxShadow:shadow,display:'flex',alignItems:'center',gap:12}}><div style={{flex:1}}><div style={{fontSize:13,fontWeight:950,color:T.txt1,textTransform:'capitalize'}}>{group.label}</div><div style={{fontSize:11,color:T.txt3,marginTop:2}}>{group.matches.length} jogo{group.matches.length!==1?'s':''}</div></div><span style={{fontSize:16,color:T.txt3}}>⌄</span></summary><div style={{paddingTop:10}}>{group.matches.map(m=><MatchCard key={m.id} m={m}/>)}</div></details>)}<div style={{height:88}}/>
     </div>
   );
-
   // ── Shell ───────────────────────────────────────────────────────────────────
   return (
     <div style={{minHeight:'100vh',background:'transparent',display:'flex',flexDirection:'column'}}>
