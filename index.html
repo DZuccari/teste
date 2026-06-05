@@ -745,6 +745,16 @@ function Bolao(){
       .catch(()=>showToast('Copie a URL do navegador',false));
   };
 
+  const copyRanking=()=>{
+    const lines=[
+      'Ranking do Nosso Bolão 2026',
+      ...board.slice(0,10).map((p,i)=>`${i+1}. ${p.name} - ${p.pts} pts (${p.exact} exatos, ${p.win} vencedores)`)
+    ];
+    navigator.clipboard.writeText(lines.join('\n'))
+      .then(()=>showToast('Ranking copiado!'))
+      .catch(()=>showToast('Não foi possível copiar.',false));
+  };
+
   const requestReminderPermission=async()=>{
     if(!('Notification' in window)){showToast('Seu navegador não suporta notificações.',false);return;}
     try{
@@ -916,6 +926,36 @@ function Bolao(){
     board:scoreBoardForMatches(group.matches).filter(p=>p.total>0||p.pts>0),
   })).filter(group=>group.board.length>0);
   const champPredCount=parts.filter(p=>champPreds[p]).length;
+  const StatTile=({value,label,color=T.txt1,bg=T.bg})=>(
+    <div className="mini-tile" style={{background:bg,border:`1px solid ${T.border}`,borderRadius:14,padding:'12px 10px',textAlign:'center',minHeight:62,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
+      <div style={{fontSize:22,fontWeight:950,color,lineHeight:1}}>{value}</div>
+      <div style={{fontSize:9,color:T.txt3,marginTop:5,textTransform:'uppercase',letterSpacing:.6,fontWeight:900}}>{label}</div>
+    </div>
+  );
+  const PageHero=({eyebrow,title,text,icon='⚽',children})=>(
+    <div className="lux-card" style={{background:'linear-gradient(135deg,#0B6B2F 0%,#0E8F3E 52%,#66A80F 100%)',borderRadius:24,padding:'22px 20px',boxShadow:shadowMd,marginBottom:14,color:'#fff',position:'relative',overflow:'hidden'}}>
+      <div style={{position:'absolute',right:-46,top:-58,width:190,height:190,borderRadius:'50%',background:'rgba(255,255,255,.09)'}}/>
+      <div style={{position:'absolute',left:'55%',bottom:-70,width:180,height:180,borderRadius:'50%',background:'rgba(255,255,255,.06)'}}/>
+      <div style={{position:'relative',display:'flex',gap:14,alignItems:'flex-start'}}>
+        <div style={{width:48,height:48,borderRadius:16,background:'rgba(255,255,255,.16)',border:'1px solid rgba(255,255,255,.18)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,flexShrink:0}}>{icon}</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:11,fontWeight:900,letterSpacing:1.1,textTransform:'uppercase',color:'rgba(255,255,255,.7)',marginBottom:5}}>{eyebrow}</div>
+          <div style={{fontFamily:'"Bebas Neue", sans-serif',fontSize:34,lineHeight:.95,letterSpacing:1.2,color:'#fff'}}>{title}</div>
+          <div style={{fontSize:13,color:'rgba(255,255,255,.78)',lineHeight:1.55,marginTop:8,maxWidth:620}}>{text}</div>
+        </div>
+      </div>
+      {children&&<div style={{position:'relative',marginTop:16}}>{children}</div>}
+    </div>
+  );
+  const SectionTitle=({title,text,action})=>(
+    <div style={{display:'flex',alignItems:'flex-end',gap:12,margin:'20px 0 10px'}}>
+      <div style={{flex:1}}>
+        <div style={{fontSize:12,fontWeight:950,color:T.txt3,letterSpacing:1,textTransform:'uppercase'}}>{title}</div>
+        {text&&<div style={{fontSize:12,color:T.txt3,marginTop:3,lineHeight:1.45}}>{text}</div>}
+      </div>
+      {action}
+    </div>
+  );
 
   // ── Match Card ──────────────────────────────────────────────────────────────
   const MatchCard=({m})=>{
@@ -1355,43 +1395,46 @@ function Bolao(){
 
   // ── Matches Tab ─────────────────────────────────────────────────────────────
   const TabMatches=(
-    <div style={{padding:'12px 14px'}}>
-      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
-        <div style={{flex:1}}>
-          <div style={{fontSize:15,fontWeight:800,color:T.txt1}}>Seus palpites</div>
-          <div style={{fontSize:11,color:T.txt3,marginTop:2}}>{predictionMatches.length} jogo{predictionMatches.length!==1?'s':''}{onlyMissing?' com palpite faltando':''}</div>
-        </div>
-        <button className="pill" style={{padding:'7px 12px',borderRadius:14,border:`1px solid ${onlyMissing?T.half:T.border}`,fontSize:11,fontWeight:700,background:onlyMissing?T.halfBg:T.card,color:onlyMissing?T.half:T.txt3}} onClick={()=>setOnlyMissing(v=>!v)}>
-          {onlyMissing?'✓ Faltando':'Faltando'}
-        </button>
+    <div style={{padding:'28px 14px 72px',maxWidth:1120,margin:'0 auto'}}>
+      <div style={{marginBottom:22}}>
+        <div style={{fontSize:13,color:T.txt3,marginBottom:8}}>Seus palpites</div>
+        <h1 style={{fontSize:30,lineHeight:1.1,color:T.txt1,letterSpacing:-.8,marginBottom:8}}>Palpites - Fase de Grupos</h1>
+        <p style={{fontSize:15,color:T.txt2,lineHeight:1.6,maxWidth:760}}>
+          Preencha seus placares por dia de jogo. Cada card mostra se o palpite está pendente, salvo, fechado ou com resultado.
+        </p>
       </div>
-      <div className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',boxShadow:shadow,marginBottom:14}}>
-        <div style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:12}}>
-          <div style={{width:40,height:40,borderRadius:14,background:T.accentLt,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0}}>⚽</div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:14,fontWeight:900,color:T.txt1}}>Seu painel de palpites</div>
-            <div style={{fontSize:12,color:T.txt2,lineHeight:1.55,marginTop:3}}>
-              Os jogos estão agrupados por dia. Você pode preencher com calma, voltar para revisar e o card avisa quando está salvo, pendente, fechado ou com resultado.
-            </div>
-          </div>
-        </div>
-        <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
-          {[
-            {v:savedPredCount,l:'salvos',c:T.accent,b:T.accentLt},
-            {v:myStats.missing,l:'faltando',c:myStats.missing?T.half:T.accent,b:myStats.missing?T.halfBg:T.accentLt},
-            {v:lockedMatchCount,l:'fechados',c:lockedMatchCount?'#1D4ED8':T.txt3,b:lockedMatchCount?'#DBEAFE':T.bg},
-            {v:predictionDayGroups.length,l:'dias na lista',c:T.txt1,b:T.bg},
-          ].map(item=>(
-            <div key={item.l} className="mini-tile" style={{background:item.b,border:`1px solid ${T.border}`,borderRadius:12,padding:'10px 8px',textAlign:'center'}}>
-              <div style={{fontSize:18,fontWeight:900,color:item.c,lineHeight:1}}>{item.v}</div>
-              <div style={{fontSize:9,color:T.txt3,marginTop:4,textTransform:'uppercase',letterSpacing:.4}}>{item.l}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{fontSize:11,color:T.txt3,lineHeight:1.5,marginTop:12}}>
-          Sugestão prática: use o filtro <strong>Faltando</strong> quando quiser preencher rápido tudo que ainda está aberto.
+
+      <div className="lux-card" style={{background:'#ECFDF5',border:`1px solid ${T.accentMd}`,borderRadius:14,padding:'14px 16px',boxShadow:shadow,display:'flex',alignItems:'center',gap:12,marginBottom:22}}>
+        <div style={{width:34,height:34,borderRadius:12,background:'#D1FAE5',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>⏱</div>
+        <div style={{fontSize:14,color:T.txt2,lineHeight:1.5}}>
+          Cada jogo trava automaticamente no horário de início. O palpite de campeão trava no primeiro jogo: <strong style={{color:T.txt1}}>{champLockLabel}</strong>.
         </div>
       </div>
+
+      <div className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:18,padding:'16px',boxShadow:shadow,marginBottom:18}}>
+        <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:14}}>
+          <StatTile value={savedPredCount} label="salvos" color={T.accent} bg={T.accentLt}/>
+          <StatTile value={myStats.missing} label="faltando" color={myStats.missing?T.half:T.accent} bg={myStats.missing?T.halfBg:T.accentLt}/>
+          <StatTile value={lockedMatchCount} label="fechados" color="#1D4ED8" bg="#DBEAFE"/>
+          <StatTile value={predictionDayGroups.length} label="dias" color={T.txt1} bg={T.bg}/>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+          <button className="pill" style={{padding:'10px 14px',borderRadius:999,border:`1px solid ${!onlyMissing?T.accent:T.border}`,fontSize:12,fontWeight:900,background:!onlyMissing?T.accentLt:T.card,color:!onlyMissing?T.accent:T.txt2,cursor:'pointer'}} onClick={()=>setOnlyMissing(false)}>
+            Todos os jogos
+          </button>
+          <button className="pill" style={{padding:'10px 14px',borderRadius:999,border:`1px solid ${onlyMissing?T.half:T.border}`,fontSize:12,fontWeight:900,background:onlyMissing?T.halfBg:T.card,color:onlyMissing?T.half:T.txt2,cursor:'pointer'}} onClick={()=>setOnlyMissing(true)}>
+            Só faltando
+          </button>
+          <span style={{fontSize:12,color:T.txt3,marginLeft:'auto'}}>{predictionMatches.length} jogo{predictionMatches.length!==1?'s':''} na lista</span>
+        </div>
+      </div>
+
+      <div style={{display:'flex',alignItems:'center',borderBottom:`1px solid ${T.border}`,marginBottom:18,gap:18}}>
+        <button style={{border:'none',borderBottom:`2px solid ${T.accent}`,background:'transparent',padding:'0 0 12px',fontSize:14,fontWeight:900,color:T.accent,cursor:'pointer'}}>Fase de Grupos</button>
+        <button disabled style={{border:'none',borderBottom:'2px solid transparent',background:'transparent',padding:'0 0 12px',fontSize:14,fontWeight:800,color:T.txt3,opacity:.7,cursor:'default'}}>Chaveamento em breve</button>
+      </div>
+
+      <SectionTitle title="Lista suspensa por dia" text="Abra um dia, preencha os placares e feche quando quiser navegar mais rápido."/>
       {predictionDayGroups.length===0&&<div style={{textAlign:'center',padding:'48px 0',color:T.txt3,fontSize:14}}>{onlyMissing?'Nenhum palpite faltando ✓':'Nenhuma partida encontrada.'}</div>}
       {predictionDayGroups.map((group,idx)=>{
         const missingCount=group.matches.filter(m=>!started(m.dt)&&(!(preds[me]||{})[m.id]||(preds[me]||{})[m.id].home==='')).length;
@@ -1417,69 +1460,78 @@ function Bolao(){
 
   // ── Ranking Tab ─────────────────────────────────────────────────────────────
   const TabRanking=(
-    <div style={{padding:'14px 14px'}}>
-      <div className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',boxShadow:shadow,marginBottom:14}}>
-        <div style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:12}}>
-          <div style={{width:42,height:42,borderRadius:14,background:T.goldBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:21,flexShrink:0}}>🏆</div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:15,fontWeight:900,color:T.txt1}}>Ranking geral</div>
-            <div style={{fontSize:12,color:T.txt2,lineHeight:1.55,marginTop:3}}>
-              A classificação soma os jogos que já têm resultado e, quando definido pelo admin, o bônus de campeão. Abaixo também tem ranking por dia para ver quem foi melhor em cada rodada.
-            </div>
-          </div>
+    <div style={{padding:'28px 14px 72px',maxWidth:1120,margin:'0 auto'}}>
+      <div style={{display:'flex',alignItems:'flex-end',gap:16,marginBottom:22,flexWrap:'wrap'}}>
+        <div style={{flex:1,minWidth:260}}>
+          <div style={{fontSize:13,color:T.txt3,marginBottom:8}}>Classificação</div>
+          <h1 style={{fontSize:30,lineHeight:1.1,color:T.txt1,letterSpacing:-.8,marginBottom:8}}>Ranking</h1>
+          <p style={{fontSize:15,color:T.txt2,lineHeight:1.6,maxWidth:720}}>Classificação geral dos participantes do bolão, com desempate automático e recortes por dia depois que houver resultados.</p>
         </div>
-        <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:12}}>
-          {[
-            {v:'3',l:'placar exato',c:T.ok,b:T.okBg},
-            {v:'1',l:'vencedor/empate',c:T.half,b:T.halfBg},
-            {v:`+${CHAMP_PTS}`,l:'campeão da Copa',c:T.gold,b:T.goldBg},
-          ].map(item=>(
-            <div key={item.l} className="mini-tile" style={{background:item.b,border:`1px solid ${T.border}`,borderRadius:12,padding:'10px 8px',textAlign:'center'}}>
-              <div style={{fontSize:20,fontWeight:900,color:item.c,lineHeight:1}}>{item.v}</div>
-              <div style={{fontSize:9,color:T.txt3,marginTop:4,textTransform:'uppercase',letterSpacing:.4}}>{item.l}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{fontSize:11,color:T.txt3,lineHeight:1.5}}>
-          Desempate: pontos → exatos → vencedores → campeão → menos erros → ordem alfabética.
-        </div>
+        <button className="pill" onClick={copyRanking} style={{padding:'10px 14px',borderRadius:12,border:'1px solid '+T.accentMd,background:T.card,color:T.accent,fontSize:12,fontWeight:900,cursor:'pointer'}}>📋 Copiar pro WhatsApp</button>
       </div>
-      <div style={{background:T.card,borderRadius:16,border:`1px solid ${T.border}`,boxShadow:shadow,overflow:'hidden',marginBottom:14}}>
-        {board.map((p,i)=>(
-          <div key={p.uid} style={{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',background:p.uid===me?'#F0FDF4':i===0?'#FFFBEB':'transparent',borderBottom:i<board.length-1?`1px solid ${T.border}`:'none'}}>
-            <span style={{fontSize:18,width:28,textAlign:'center'}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}º`}</span>
-            <div style={{flex:1}}>
-              <div style={{fontSize:14,fontWeight:700,color:p.uid===me?T.accent:T.txt1}}>{p.name}{p.uid===me&&<span style={{fontSize:11,color:T.txt3,fontWeight:400}}> (você)</span>}</div>
-              <div style={{fontSize:11,color:T.txt3,marginTop:2}}>{p.exact} exatos · {p.win} vencedores · {p.total} jogos{champPreds[p.uid]?` · 🏆 ${fl(champPreds[p.uid])} ${champPreds[p.uid]}`:''}</div>
-            </div>
-            <div style={{textAlign:'right'}}>
-              <div style={{fontSize:22,fontWeight:900,color:T.txt1}}>{p.pts}</div>
-              <div style={{fontSize:10,color:T.txt3}}>pontos</div>
-            </div>
-          </div>
-        ))}
-        {board.length===0&&<div style={{padding:'28px',fontSize:13,color:T.txt3,textAlign:'center'}}>Nenhum palpite ainda.</div>}
+
+      <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:18}}>
+        <StatTile value={parts.length} label="participantes" color={T.accent} bg={T.accentLt}/>
+        <StatTile value={resultMatchCount} label="jogos valendo" color="#1D4ED8" bg="#DBEAFE"/>
+        <StatTile value={board[0]?.pts||0} label="pontuação líder" color={T.gold} bg={T.goldBg}/>
+        <StatTile value={myStats.rank?myStats.rank+'º':'-'} label="sua posição" color={myStats.rank===1?T.gold:T.txt1} bg={myStats.rank===1?T.goldBg:T.bg}/>
       </div>
+
+      <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,boxShadow:shadow,overflow:'hidden',marginBottom:18}}>
+        <div style={{overflowX:'auto'}}>
+          <table style={{width:'100%',borderCollapse:'collapse',minWidth:760}}>
+            <thead>
+              <tr style={{background:'#00732E',color:'#fff'}}>
+                <th style={{padding:'12px 14px',fontSize:12,textAlign:'left',fontWeight:900,width:56}}>#</th>
+                <th style={{padding:'12px 14px',fontSize:12,textAlign:'left',fontWeight:900}}>Participante</th>
+                <th style={{padding:'12px 10px',fontSize:12,textAlign:'center',fontWeight:900}}>Exatos</th>
+                <th style={{padding:'12px 10px',fontSize:12,textAlign:'center',fontWeight:900}}>Vencedor</th>
+                <th style={{padding:'12px 10px',fontSize:12,textAlign:'center',fontWeight:900}}>Erros</th>
+                <th style={{padding:'12px 10px',fontSize:12,textAlign:'center',fontWeight:900}}>Campeão</th>
+                <th style={{padding:'12px 14px',fontSize:12,textAlign:'right',fontWeight:900}}>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {board.map((p,i)=>(
+                <tr key={p.uid} style={{background:p.uid===me?'#F0FDF4':i===0?'#FFFBEB':'#fff',borderBottom:'1px solid '+T.border}}>
+                  <td style={{padding:'13px 14px',fontSize:13,fontWeight:900,color:i<3?T.gold:T.txt3}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</td>
+                  <td style={{padding:'13px 14px'}}>
+                    <div style={{fontSize:14,fontWeight:900,color:p.uid===me?T.accent:T.txt1}}>{p.name}{p.uid===me&&<span style={{fontSize:11,color:T.txt3,fontWeight:500}}> · você</span>}</div>
+                    <div style={{fontSize:11,color:T.txt3,marginTop:2}}>{p.total} jogo{p.total!==1?'s':''} pontuado{p.total!==1?'s':''}</div>
+                  </td>
+                  <td style={{padding:'13px 10px',textAlign:'center',fontSize:13,fontWeight:800,color:T.ok}}>{p.exact}</td>
+                  <td style={{padding:'13px 10px',textAlign:'center',fontSize:13,fontWeight:800,color:T.half}}>{p.win}</td>
+                  <td style={{padding:'13px 10px',textAlign:'center',fontSize:13,fontWeight:800,color:T.err}}>{p.miss}</td>
+                  <td style={{padding:'13px 10px',textAlign:'center',fontSize:13,fontWeight:800,color:p.champHit?T.gold:T.txt3}}>{p.champHit?'✓':champPreds[p.uid]?'feito':'-'}</td>
+                  <td style={{padding:'13px 14px',textAlign:'right',fontSize:22,fontWeight:950,color:T.txt1}}>{p.pts}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {board.length===0&&<div style={{padding:'28px',fontSize:13,color:T.txt3,textAlign:'center'}}>Nenhum participante com palpite ainda.</div>}
+      </div>
+
       {dailyBoards.length>0&&(
         <>
-          <div style={sec}>Ranking por dia</div>
+          <SectionTitle title="Ranking por dia" text="Um recorte para ver quem mandou melhor em cada data com resultado."/>
           {dailyBoards.slice().reverse().map((group,idx)=>(
-            <details key={group.key} open={idx===0} style={{marginBottom:8}}>
-              <summary style={{listStyle:'none',cursor:'pointer',background:T.card,border:`1px solid ${T.border}`,borderRadius:12,padding:'12px 14px',boxShadow:shadow,display:'flex',alignItems:'center',gap:10}}>
+            <details key={group.key} open={idx===0} style={{marginBottom:10}}>
+              <summary style={{listStyle:'none',cursor:'pointer',background:T.card,border:'1px solid '+T.border,borderRadius:14,padding:'13px 15px',boxShadow:shadow,display:'flex',alignItems:'center',gap:10}}>
                 <div style={{flex:1}}>
-                  <div style={{fontSize:13,fontWeight:800,color:T.txt1,textTransform:'capitalize'}}>{group.label}</div>
+                  <div style={{fontSize:13,fontWeight:900,color:T.txt1,textTransform:'capitalize'}}>{group.label}</div>
                   <div style={{fontSize:11,color:T.txt3,marginTop:2}}>{group.matches.length} jogo{group.matches.length!==1?'s':''} com resultado</div>
                 </div>
-                {group.board[0]&&<span style={{fontSize:11,fontWeight:800,color:T.gold,background:T.goldBg,borderRadius:20,padding:'4px 9px'}}>líder: {group.board[0].name}</span>}
-                <span style={{fontSize:15,color:T.txt3}}>⌄</span>
+                {group.board[0]&&<span style={{fontSize:11,fontWeight:900,color:T.gold,background:T.goldBg,borderRadius:999,padding:'5px 10px'}}>líder: {group.board[0].name}</span>}
+                <span style={{fontSize:16,color:T.txt3}}>⌄</span>
               </summary>
-              <div style={{background:T.card,border:`1px solid ${T.border}`,borderTop:'none',borderRadius:'0 0 12px 12px',overflow:'hidden'}}>
+              <div style={{background:T.card,border:'1px solid '+T.border,borderTop:'none',borderRadius:'0 0 14px 14px',overflow:'hidden'}}>
                 {group.board.map((p,i)=>(
-                  <div key={p.uid} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:p.uid===me?'#F0FDF4':'transparent',borderBottom:i<group.board.length-1?`1px solid ${T.border}`:'none'}}>
-                    <span style={{fontSize:14,width:24,textAlign:'center',fontWeight:900,color:i===0?T.gold:T.txt3}}>{i+1}º</span>
-                    <span style={{flex:1,fontSize:12,fontWeight:800,color:p.uid===me?T.accent:T.txt1}}>{p.name}{p.uid===me&&<span style={{fontSize:10,color:T.txt3,fontWeight:500}}> · você</span>}</span>
+                  <div key={p.uid} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px',background:p.uid===me?'#F0FDF4':'transparent',borderBottom:i<group.board.length-1?'1px solid '+T.border:'none'}}>
+                    <span style={{fontSize:14,width:24,textAlign:'center',fontWeight:950,color:i===0?T.gold:T.txt3}}>{i+1}º</span>
+                    <span style={{flex:1,fontSize:12,fontWeight:900,color:p.uid===me?T.accent:T.txt1}}>{p.name}{p.uid===me&&<span style={{fontSize:10,color:T.txt3,fontWeight:500}}> · você</span>}</span>
                     <span style={{fontSize:10,color:T.txt3}}>{p.exact} exatos · {p.win} vencedores</span>
-                    <span style={{fontSize:16,fontWeight:900,color:T.txt1,minWidth:24,textAlign:'right'}}>{p.pts}</span>
+                    <span style={{fontSize:16,fontWeight:950,color:T.txt1,minWidth:24,textAlign:'right'}}>{p.pts}</span>
                   </div>
                 ))}
               </div>
@@ -1487,21 +1539,22 @@ function Bolao(){
           ))}
         </>
       )}
+
       {matches.filter(m=>m.result?.home!==''&&m.result?.home!==undefined).length>0&&(
         <>
-          <div style={sec}>Comparativo por Jogo</div>
+          <SectionTitle title="Comparativo por jogo" text="Depois do apito inicial, os palpites deixam de ser segredo."/>
           {matches.filter(m=>m.result&&m.result.home!=='').map(m=>(
-            <div key={m.id} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:14,marginBottom:8,overflow:'hidden',boxShadow:shadow}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 14px',background:T.bg,borderBottom:`1px solid ${T.border}`,fontSize:12}}>
-                <span style={{color:T.txt2,fontWeight:600}}>{fl(m.home)} {m.home}</span>
-                <span style={{fontWeight:900,color:T.gold,fontSize:15}}>{m.result.home}–{m.result.away}</span>
-                <span style={{color:T.txt2,fontWeight:600}}>{m.away} {fl(m.away)}</span>
+            <div key={m.id} className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:14,marginBottom:8,overflow:'hidden',boxShadow:shadow}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 14px',background:T.bg,borderBottom:'1px solid '+T.border,fontSize:12,gap:10}}>
+                <span style={{color:T.txt2,fontWeight:800}}>{fl(m.home)} {m.home}</span>
+                <span style={{fontWeight:950,color:T.gold,fontSize:16}}>{m.result.home}-{m.result.away}</span>
+                <span style={{color:T.txt2,fontWeight:800,textAlign:'right'}}>{m.away} {fl(m.away)}</span>
               </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:5,padding:'10px 14px'}}>
+              <div style={{display:'flex',flexWrap:'wrap',gap:6,padding:'12px 14px'}}>
                 {board.map(p=>{
                   const pp=(preds[p.uid]||{})[m.id];
                   const x=pp?calcPts(pp,m.result):null;
-                  return <span key={p.uid} style={{fontSize:11,fontWeight:600,padding:'3px 10px',borderRadius:16,background:x===3?T.okBg:x===1?T.halfBg:x===0?T.errBg:T.bg,color:x===3?T.ok:x===1?T.half:x===0?T.err:T.txt3,border:`1px solid ${T.border}`}}>{p.name}: {pp&&pp.home!==''?`${pp.home}×${pp.away}`:'–'}</span>;
+                  return <span key={p.uid} style={{fontSize:11,fontWeight:700,padding:'4px 10px',borderRadius:999,background:x===3?T.okBg:x===1?T.halfBg:x===0?T.errBg:T.bg,color:x===3?T.ok:x===1?T.half:x===0?T.err:T.txt3,border:'1px solid '+T.border}}>{p.name}: {pp&&pp.home!==''?pp.home+'×'+pp.away:'-'}</span>;
                 })}
               </div>
             </div>
@@ -1513,141 +1566,193 @@ function Bolao(){
   );
 
   const TabRules=(
-    <div style={{padding:'14px'}}>
-      <div className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',boxShadow:shadow,marginBottom:12}}>
-        <h3 style={{fontSize:15,color:T.txt1,marginBottom:8}}>📘 Regras do Bolão</h3>
-        <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:14}}>
+    <div style={{padding:'28px 14px 72px',maxWidth:1120,margin:'0 auto'}}>
+      <div style={{marginBottom:22}}>
+        <div style={{fontSize:13,color:T.txt3,marginBottom:8}}>Regulamento</div>
+        <h1 style={{fontSize:30,lineHeight:1.1,color:T.txt1,letterSpacing:-.8,marginBottom:8}}>Como o bolão funciona</h1>
+        <p style={{fontSize:15,color:T.txt2,lineHeight:1.6,maxWidth:760}}>Regras simples, travas automáticas e desempate transparente para ninguém precisar discutir no grupo.</p>
+      </div>
+
+      <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:18}}>
+        <StatTile value="3" label="placar exato" color={T.ok} bg={T.okBg}/>
+        <StatTile value="1" label="vencedor/empate" color={T.half} bg={T.halfBg}/>
+        <StatTile value={'+'+CHAMP_PTS} label="campeão" color={T.gold} bg={T.goldBg}/>
+        <StatTile value="0" label="erro" color={T.err} bg={T.errBg}/>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'minmax(0,1.1fr) minmax(300px,.9fr)',gap:14}}>
+        <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
+          <SectionTitle title="Pontuação" text="O placar exato é o que realmente abre vantagem."/>
           {[
-            {v:'3',l:'placar exato',c:T.ok,b:T.okBg},
-            {v:'1',l:'vencedor/empate',c:T.half,b:T.halfBg},
-            {v:`+${CHAMP_PTS}`,l:'campeão',c:T.gold,b:T.goldBg},
-            {v:'0',l:'erro',c:T.err,b:T.errBg},
-          ].map(item=>(
-            <div key={item.l} className="mini-tile" style={{background:item.b,border:`1px solid ${T.border}`,borderRadius:12,padding:'10px 8px',textAlign:'center'}}>
-              <div style={{fontSize:18,fontWeight:900,color:item.c,lineHeight:1}}>{item.v}</div>
-              <div style={{fontSize:9,color:T.txt3,marginTop:4,textTransform:'uppercase',letterSpacing:.4}}>{item.l}</div>
+            ['⭐','Placar exato','Acertou o placar completo do jogo: 3 pontos.'],
+            ['✓','Vencedor ou empate','Acertou o vencedor, ou que seria empate, mas errou o placar: 1 ponto.'],
+            ['🏆','Campeão da Copa','O campeão vale bônus de '+CHAMP_PTS+' pontos quando o admin definir o campeão oficial.'],
+            ['×','Erro','Errou o vencedor/empate: 0 ponto.']
+          ].map((row,idx)=>(
+            <div key={row[1]} style={{display:'flex',gap:12,padding:'13px 0',borderTop:idx?'1px solid '+T.border:'none'}}>
+              <div style={{width:34,height:34,borderRadius:12,background:idx===0?T.okBg:idx===1?T.halfBg:idx===2?T.goldBg:T.errBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>{row[0]}</div>
+              <div>
+                <div style={{fontSize:14,fontWeight:900,color:T.txt1}}>{row[1]}</div>
+                <div style={{fontSize:12,color:T.txt2,lineHeight:1.55,marginTop:2}}>{row[2]}</div>
+              </div>
             </div>
           ))}
         </div>
-        <div style={{fontSize:12,color:T.txt2,lineHeight:1.7}}>
-          <div>• Placar exato: <strong>3 pontos</strong>.</div>
-          <div>• Acertar vencedor/empate: <strong>1 ponto</strong>.</div>
-          <div>• Erro no resultado: <strong>0 ponto</strong>.</div>
-          <div>• Campeão da Copa: <strong>+{CHAMP_PTS} pontos</strong>.</div>
-          <div>• Palpite bloqueia no horário de início do jogo.</div>
-          <div>• Palpite do campeão não pode ser criado nem alterado após o início do primeiro jogo da Copa.</div>
-          <div>• Desempate: pontos, exatos, vencedores, campeão, menos erros, ordem alfabética.</div>
-        </div>
-        <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${T.border}`,fontSize:11,color:T.txt3}}>
-          Status admin: {isAdmin?'você é admin':'usuário comum'}.
-          {!isAdmin&&Object.keys(adminIds).length===0&&(
-            <button onClick={claimFirstAdmin} style={{marginLeft:8,padding:'4px 10px',borderRadius:8,border:`1px solid ${T.border}`,background:T.card,color:T.txt2,fontSize:11,cursor:'pointer'}}>
-              Tornar-me primeiro admin
-            </button>
-          )}
+
+        <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
+          <SectionTitle title="Travas e privacidade" text="A parte que mantém o jogo justo."/>
+          {[
+            ['⏱','Jogo','Cada palpite bloqueia no horário de início da partida.'],
+            ['🏆','Campeão','Não pode criar nem alterar após o início do primeiro jogo da Copa.'],
+            ['👀','Sem spoiler','Antes do jogo começar, os palpites dos outros ficam ocultos.'],
+            ['⚖','Desempate','Pontos, exatos, vencedores, campeão, menos erros e ordem alfabética.']
+          ].map((row,idx)=>(
+            <div key={row[1]} style={{display:'flex',gap:12,padding:'13px 0',borderTop:idx?'1px solid '+T.border:'none'}}>
+              <div style={{width:34,height:34,borderRadius:12,background:T.bg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>{row[0]}</div>
+              <div>
+                <div style={{fontSize:14,fontWeight:900,color:T.txt1}}>{row[1]}</div>
+                <div style={{fontSize:12,color:T.txt2,lineHeight:1.55,marginTop:2}}>{row[2]}</div>
+              </div>
+            </div>
+          ))}
+          <div style={{marginTop:12,padding:'12px',borderRadius:14,background:isAdmin?T.accentLt:T.bg,border:'1px solid '+(isAdmin?T.accentMd:T.border),fontSize:12,color:isAdmin?T.accent:T.txt3,lineHeight:1.5}}>
+            Status admin: <strong>{isAdmin?'você é admin':'usuário comum'}</strong>.
+            {!isAdmin&&Object.keys(adminIds).length===0&&(
+              <button onClick={claimFirstAdmin} style={{marginLeft:8,padding:'5px 10px',borderRadius:10,border:'1px solid '+T.border,background:T.card,color:T.txt2,fontSize:11,fontWeight:800,cursor:'pointer'}}>Tornar-me primeiro admin</button>
+            )}
+          </div>
         </div>
       </div>
-      <div className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',boxShadow:shadow}}>
-        <h3 style={{fontSize:15,color:T.txt1,marginBottom:8}}>🔐 Regras Firebase (cole no console)</h3>
-        <pre style={{fontSize:10,whiteSpace:'pre-wrap',background:T.bg,padding:10,borderRadius:10,border:`1px solid ${T.border}`,color:T.txt2}}>
-{`{
-  "rules": {
-    "bolao2026": {
-      ".read": "auth != null",
-      "participants": {
-        "$uid": { ".write": "auth != null && auth.uid === $uid" }
-      },
-      "predictions": {
-        "$uid": { ".write": "auth != null && auth.uid === $uid" }
-      },
-      "champPreds": {
-        "$uid": { ".write": "auth != null && auth.uid === $uid && now < ${CHAMP_RULE_LOCK_TS}" }
-      },
-      "matches": { ".write": "auth != null && root.child('bolao2026/admins').child(auth.uid).val() === true" },
-      "champWinner": { ".write": "auth != null && root.child('bolao2026/admins').child(auth.uid).val() === true" },
-      "audit": {
-        "$logId": { ".write": "auth != null && root.child('bolao2026/admins').child(auth.uid).val() === true" }
-      },
-      "admins": { ".write": false }
-    }
-  }
-}`}
+
+      <details style={{marginTop:14,background:T.card,border:'1px solid '+T.border,borderRadius:18,boxShadow:shadow,overflow:'hidden'}}>
+        <summary style={{listStyle:'none',cursor:'pointer',padding:'15px 18px',display:'flex',alignItems:'center',gap:12}}>
+          <div style={{width:36,height:36,borderRadius:12,background:'#DBEAFE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:17}}>🔐</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:14,fontWeight:900,color:T.txt1}}>Regras Firebase</div>
+            <div style={{fontSize:11,color:T.txt3,marginTop:2}}>Área técnica para colar no console do Firebase, se precisar.</div>
+          </div>
+          <span style={{fontSize:16,color:T.txt3}}>⌄</span>
+        </summary>
+        <pre style={{fontSize:10,whiteSpace:'pre-wrap',background:T.bg,padding:14,borderTop:'1px solid '+T.border,color:T.txt2,overflowX:'auto'}}>
+          {[
+            '{',
+            '  "rules": {',
+            '    "bolao2026": {',
+            '      ".read": "auth != null",',
+            '      "participants": { "$uid": { ".write": "auth != null && auth.uid === $uid" } },',
+            '      "predictions": { "$uid": { ".write": "auth != null && auth.uid === $uid" } },',
+            '      "champPreds": { "$uid": { ".write": "auth != null && auth.uid === $uid && now < '+CHAMP_RULE_LOCK_TS+'" } },',
+            '      "matches": { ".write": "auth != null && root.child(\'bolao2026/admins\').child(auth.uid).val() === true" },',
+            '      "champWinner": { ".write": "auth != null && root.child(\'bolao2026/admins\').child(auth.uid).val() === true" },',
+            '      "audit": { "$logId": { ".write": "auth != null && root.child(\'bolao2026/admins\').child(auth.uid).val() === true" } },',
+            '      "admins": { ".write": false }',
+            '    }',
+            '  }',
+            '}'
+          ].join('\n')}
         </pre>
-      </div>
+      </details>
       <div style={{height:88}}/>
     </div>
   );
 
   // ── Admin Tab ───────────────────────────────────────────────────────────────
   const TabAdmin=!isAdmin?null:(
-    <div style={{padding:'14px'}}>
-      <div style={{background:T.errBg,border:`1px solid #FECACA`,borderRadius:12,padding:'10px 14px',fontSize:12,color:T.err,marginBottom:18}}>⚙️ Painel Admin</div>
-      <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',boxShadow:shadow,marginBottom:16}}>
-        <div style={{fontSize:13,fontWeight:700,color:T.txt1,marginBottom:10}}>🏆 Definir Campeão Oficial</div>
-        <div style={{display:'flex',gap:8}}>
-          <select className="inp" style={{...inpSt,flex:1}} value={adminChampInput} onChange={e=>setAdminChampInput(e.target.value)}>
-            <option value="">Selecionar campeão...</option>
-            {ALL_TEAMS.map(t=><option key={t} value={t}>{fl(t)} {t}</option>)}
-          </select>
-          <button className="btn-acc" style={{...btnAcc,padding:'9px 16px',whiteSpace:'nowrap'}} onClick={saveChampWinner}>Salvar</button>
-        </div>
-        {champWinner&&<p style={{fontSize:12,color:T.ok,marginTop:8,fontWeight:600}}>✓ {fl(champWinner)} {champWinner}</p>}
+    <div style={{padding:'28px 14px 72px',maxWidth:1120,margin:'0 auto'}}>
+      <div style={{marginBottom:22}}>
+        <div style={{fontSize:13,color:T.txt3,marginBottom:8}}>Painel Admin</div>
+        <h1 style={{fontSize:30,lineHeight:1.1,color:T.txt1,letterSpacing:-.8,marginBottom:8}}>Controle do bolão</h1>
+        <p style={{fontSize:15,color:T.txt2,lineHeight:1.6,maxWidth:760}}>Atualize resultados, defina campeão oficial e gerencie apenas participantes reais registrados.</p>
       </div>
-      <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',boxShadow:shadow,marginBottom:16}}>
-        <div style={{fontSize:13,fontWeight:700,color:T.txt1,marginBottom:12}}>📝 Registrar Resultados</div>
-        {matches.map(m=>(
-          <div key={m.id} style={{display:'flex',alignItems:'center',padding:'7px 0',borderBottom:`1px solid ${T.border}`,flexWrap:'wrap',gap:6}}>
-            <span style={{fontSize:11,color:T.txt2,flex:1,minWidth:180}}>
-              <span style={{color:T.accent,fontWeight:700,marginRight:4}}>[{m.ph==='Grupos'?m.gr:m.ph}]</span>
-              {fl(m.home)} {m.home} × {m.away} {fl(m.away)}
-              <span style={{color:T.txt3,marginLeft:5}}>{fDate(m.dt)}</span>
-            </span>
-            <div style={{display:'flex',alignItems:'center',gap:6}}>
-              <input style={{width:40,padding:'5px',textAlign:'center',borderRadius:7,border:`1.5px solid ${T.border}`,background:T.bg,color:T.txt1,fontSize:15,fontWeight:800,outline:'none'}} type="number" min="0" max="20" placeholder="–" value={ri[m.id]?.home||''} onChange={e=>setRi(r=>({...r,[m.id]:{...r[m.id],home:e.target.value}}))}/>
-              <span style={{color:T.txt3,fontWeight:700}}>–</span>
-              <input style={{width:40,padding:'5px',textAlign:'center',borderRadius:7,border:`1.5px solid ${T.border}`,background:T.bg,color:T.txt1,fontSize:15,fontWeight:800,outline:'none'}} type="number" min="0" max="20" placeholder="–" value={ri[m.id]?.away||''} onChange={e=>setRi(r=>({...r,[m.id]:{...r[m.id],away:e.target.value}}))}/>
-              <button className="btn-acc" style={{...btnAcc,padding:'5px 10px',fontSize:11}} onClick={()=>saveResult(m.id)}>OK</button>
-              {m.result?.home!==''&&m.result?.home!==undefined&&<span style={{fontSize:10,color:T.ok,fontWeight:700}}>✓{m.result.home}–{m.result.away}</span>}
+
+      <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:18}}>
+        <StatTile value={matches.length} label="jogos" color={T.txt1} bg={T.bg}/>
+        <StatTile value={resultMatchCount} label="resultados" color={T.accent} bg={T.accentLt}/>
+        <StatTile value={parts.length} label="participantes" color="#1D4ED8" bg="#DBEAFE"/>
+        <StatTile value={audit.length} label="ações recentes" color={T.gold} bg={T.goldBg}/>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'minmax(280px,.8fr) minmax(0,1.2fr)',gap:14,alignItems:'start'}}>
+        <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
+            <SectionTitle title="Campeão oficial" text="Use só quando a Copa terminar."/>
+            <div style={{display:'flex',gap:8}}>
+              <select className="inp" style={{...inpSt,flex:1}} value={adminChampInput} onChange={e=>setAdminChampInput(e.target.value)}>
+                <option value="">Selecionar campeão...</option>
+                {ALL_TEAMS.map(t=><option key={t} value={t}>{fl(t)} {t}</option>)}
+              </select>
+              <button className="btn-acc" style={{...btnAcc,padding:'9px 16px',whiteSpace:'nowrap'}} onClick={saveChampWinner}>Salvar</button>
+            </div>
+            {champWinner&&<p style={{fontSize:12,color:T.ok,marginTop:10,fontWeight:900}}>✓ Campeão oficial: {fl(champWinner)} {champWinner}</p>}
+          </div>
+
+          <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
+            <SectionTitle title="Adicionar partida" text="Para ajustes manuais fora do CSV."/>
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              <div style={{display:'flex',gap:8}}>
+                <select className="inp" style={{...inpSt,flex:1}} value={newM.ph} onChange={e=>setNewM(n=>({...n,ph:e.target.value}))}>{PHASES.map(p=><option key={p}>{p}</option>)}</select>
+                {newM.ph==='Grupos'&&<select className="inp" style={{...inpSt,width:80}} value={newM.gr} onChange={e=>setNewM(n=>({...n,gr:e.target.value}))}>{GROUPS.map(g=><option key={g}>{g}</option>)}</select>}
+              </div>
+              <input className="inp" style={inpSt} placeholder="Time Casa" value={newM.home} onChange={e=>setNewM(n=>({...n,home:e.target.value}))}/>
+              <input className="inp" style={inpSt} placeholder="Time Fora" value={newM.away} onChange={e=>setNewM(n=>({...n,away:e.target.value}))}/>
+              <input className="inp" type="datetime-local" style={inpSt} value={newM.dt} onChange={e=>setNewM(n=>({...n,dt:e.target.value}))}/>
+              <input className="inp" style={inpSt} placeholder="Sede" value={newM.venue} onChange={e=>setNewM(n=>({...n,venue:e.target.value}))}/>
+              <button className="btn-acc" style={{...btnAcc,width:'100%'}} onClick={addMatch}>Adicionar partida</button>
             </div>
           </div>
-        ))}
-      </div>
-      <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',boxShadow:shadow,marginBottom:16}}>
-        <div style={{fontSize:13,fontWeight:700,color:T.txt1,marginBottom:10}}>➕ Adicionar Partida</div>
-        <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-          <select className="inp" style={{...inpSt,minWidth:110,width:'auto'}} value={newM.ph} onChange={e=>setNewM(n=>({...n,ph:e.target.value}))}>{PHASES.map(p=><option key={p}>{p}</option>)}</select>
-          {newM.ph==='Grupos'&&<select className="inp" style={{...inpSt,width:70}} value={newM.gr} onChange={e=>setNewM(n=>({...n,gr:e.target.value}))}>{GROUPS.map(g=><option key={g}>{g}</option>)}</select>}
-          <input className="inp" style={{...inpSt,flex:1,minWidth:110}} placeholder="Time Casa" value={newM.home} onChange={e=>setNewM(n=>({...n,home:e.target.value}))}/>
-          <input className="inp" style={{...inpSt,flex:1,minWidth:110}} placeholder="Time Fora" value={newM.away} onChange={e=>setNewM(n=>({...n,away:e.target.value}))}/>
-          <input className="inp" type="datetime-local" style={{...inpSt,flex:1,minWidth:160}} value={newM.dt} onChange={e=>setNewM(n=>({...n,dt:e.target.value}))}/>
-          <input className="inp" style={{...inpSt,flex:1,minWidth:110}} placeholder="Sede" value={newM.venue} onChange={e=>setNewM(n=>({...n,venue:e.target.value}))}/>
-          <button className="btn-acc" style={btnAcc} onClick={addMatch}>Adicionar</button>
-        </div>
-      </div>
-      <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',boxShadow:shadow,marginBottom:16}}>
-        <div style={{fontSize:13,fontWeight:700,color:T.txt1,marginBottom:8}}>📥 Importar Tabela CSV</div>
-        <p style={{fontSize:11,color:T.txt3,marginBottom:10}}>Colunas mínimas: <code>home,away,dt</code>. O resto é opcional: <code>id,ph,gr,venue</code>.</p>
-        <input type="file" accept=".csv,text/csv" onChange={onCsvFile} style={{marginBottom:10,fontSize:12,color:T.txt2}}/>
-        <div style={{fontSize:11,color:T.txt3}}>{csvImporting?'Importando...':'Use formato de data ISO (ex: 2026-06-11T16:00:00-03:00).'}</div>
-      </div>
-      <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',boxShadow:shadow,marginBottom:16}}>
-        <div style={{fontSize:13,fontWeight:700,color:T.txt1,marginBottom:8}}>🧾 Histórico Admin</div>
-        {audit.length===0&&<div style={{fontSize:12,color:T.txt3}}>Sem ações registradas ainda.</div>}
-        {audit.slice(0,12).map(item=>(
-          <div key={item.id} style={{padding:'8px 0',borderBottom:`1px solid ${T.border}`,fontSize:11,color:T.txt2}}>
-            <strong style={{color:T.txt1}}>{item.action}</strong> · {item.name||item.uid} · {item.ts?new Date(item.ts).toLocaleString('pt-BR'):'agora'}
+
+          <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
+            <SectionTitle title="Importar CSV" text="Colunas mínimas: home, away, dt."/>
+            <input type="file" accept=".csv,text/csv" onChange={onCsvFile} style={{marginBottom:10,fontSize:12,color:T.txt2}}/>
+            <div style={{fontSize:11,color:T.txt3,lineHeight:1.5}}>{csvImporting?'Importando...':'Opcionais: id, ph, gr, venue. Use data ISO, exemplo: 2026-06-11T16:00:00-03:00.'}</div>
           </div>
-        ))}
-      </div>
-      <div style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',boxShadow:shadow}}>
-        <div style={{fontSize:13,fontWeight:700,color:T.txt1,marginBottom:10}}>👥 Participantes ({parts.length})</div>
-        <div style={{display:'flex',flexWrap:'wrap',gap:7}}>
-          {parts.map(p=>(
-            <div key={p} style={{display:'flex',alignItems:'center',gap:4,background:T.accentLt,border:`1px solid ${T.accentMd}`,borderRadius:20,padding:'4px 6px 4px 12px'}}>
-              <span style={{fontSize:12,fontWeight:600,color:T.accent}}>{getName(p)}</span>
-              <button onClick={()=>removeParticipant(p)} style={{width:18,height:18,borderRadius:'50%',border:'none',background:'rgba(220,38,38,.1)',color:T.err,cursor:'pointer',fontSize:11,display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1,fontWeight:700}}>×</button>
+        </div>
+
+        <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
+            <SectionTitle title="Registrar resultados" text="Resultados liberam pontos e comparativos por jogo."/>
+            <div style={{maxHeight:520,overflow:'auto',paddingRight:4}}>
+              {matches.map(m=>(
+                <div key={m.id} style={{display:'flex',alignItems:'center',padding:'9px 0',borderBottom:'1px solid '+T.border,flexWrap:'wrap',gap:8}}>
+                  <span style={{fontSize:12,color:T.txt2,flex:1,minWidth:220}}>
+                    <span style={{color:T.accent,fontWeight:900,marginRight:6}}>{m.ph==='Grupos'?'Grupo '+m.gr:m.ph}</span>
+                    {fl(m.home)} {m.home} × {m.away} {fl(m.away)}
+                    <span style={{color:T.txt3,marginLeft:6}}>{fDate(m.dt)}</span>
+                  </span>
+                  <div style={{display:'flex',alignItems:'center',gap:6}}>
+                    <input style={{width:42,padding:'6px',textAlign:'center',borderRadius:8,border:'1.5px solid '+T.border,background:T.bg,color:T.txt1,fontSize:15,fontWeight:900,outline:'none'}} type="number" min="0" max="20" placeholder="-" value={ri[m.id]?.home||''} onChange={e=>setRi(r=>({...r,[m.id]:{...r[m.id],home:e.target.value}}))}/>
+                    <span style={{color:T.txt3,fontWeight:900}}>-</span>
+                    <input style={{width:42,padding:'6px',textAlign:'center',borderRadius:8,border:'1.5px solid '+T.border,background:T.bg,color:T.txt1,fontSize:15,fontWeight:900,outline:'none'}} type="number" min="0" max="20" placeholder="-" value={ri[m.id]?.away||''} onChange={e=>setRi(r=>({...r,[m.id]:{...r[m.id],away:e.target.value}}))}/>
+                    <button className="btn-acc" style={{...btnAcc,padding:'6px 11px',fontSize:11}} onClick={()=>saveResult(m.id)}>OK</button>
+                    {m.result?.home!==''&&m.result?.home!==undefined&&<span style={{fontSize:10,color:T.ok,fontWeight:900}}>✓ {m.result.home}-{m.result.away}</span>}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+
+          <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
+            <SectionTitle title={'Participantes reais ('+parts.length+')'} text="Somente quem registrou nome aparece aqui."/>
+            {parts.length===0&&<div style={{fontSize:12,color:T.txt3}}>Nenhum participante registrado ainda.</div>}
+            <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+              {parts.map(p=>(
+                <div key={p} style={{display:'flex',alignItems:'center',gap:6,background:T.accentLt,border:'1px solid '+T.accentMd,borderRadius:999,padding:'6px 7px 6px 12px'}}>
+                  <span style={{fontSize:12,fontWeight:900,color:T.accent}}>{getName(p)}</span>
+                  {p!==me&&<button onClick={()=>removeParticipant(p)} style={{width:20,height:20,borderRadius:'50%',border:'none',background:'rgba(220,38,38,.1)',color:T.err,cursor:'pointer',fontSize:12,display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1,fontWeight:900}}>×</button>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
+            <SectionTitle title="Histórico admin" text="Últimas ações registradas."/>
+            {audit.length===0&&<div style={{fontSize:12,color:T.txt3}}>Sem ações registradas ainda.</div>}
+            {audit.slice(0,12).map(item=>(
+              <div key={item.id} style={{padding:'9px 0',borderBottom:'1px solid '+T.border,fontSize:11,color:T.txt2}}>
+                <strong style={{color:T.txt1}}>{item.action}</strong> · {item.name||item.uid} · {item.ts?new Date(item.ts).toLocaleString('pt-BR'):'agora'}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
       <div style={{height:88}}/>
@@ -1656,79 +1761,64 @@ function Bolao(){
 
   // ── General Predictions Tab ────────────────────────────────────────────────
   const TabGeneralPreds=(
-    <div style={{padding:'14px'}}>
-      <div style={{marginBottom:12}}>
-        <div style={{fontSize:15,fontWeight:800,color:T.txt1}}>Palpites gerais</div>
-        <div style={{fontSize:11,color:T.txt3,marginTop:2}}>Veja o panorama do bolão sem revelar placares antes da hora.</div>
-      </div>
-      <div className="lux-card" style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:16,padding:'16px',boxShadow:shadow,marginBottom:14}}>
-        <div style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:12}}>
-          <div style={{width:42,height:42,borderRadius:14,background:T.accentLt,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0}}>👀</div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:14,fontWeight:900,color:T.txt1}}>Visão do grupo, sem spoiler</div>
-            <div style={{fontSize:12,color:T.txt2,lineHeight:1.55,marginTop:3}}>
-              Esta aba serve para ver participação e comparar palpites quando for justo. Antes da bola rolar, ela mostra só quem fez ou quem ainda está devendo.
-            </div>
-          </div>
-        </div>
-        <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
-          {[
-            {v:champPredCount,l:'campeões enviados',c:T.gold,b:T.goldBg},
-            {v:lockedMatchCount,l:'jogos reveláveis',c:lockedMatchCount?'#1D4ED8':T.txt3,b:lockedMatchCount?'#DBEAFE':T.bg},
-            {v:resultMatchCount,l:'com resultado',c:resultMatchCount?T.accent:T.txt3,b:resultMatchCount?T.accentLt:T.bg},
-          ].map(item=>(
-            <div key={item.l} className="mini-tile" style={{background:item.b,border:`1px solid ${T.border}`,borderRadius:12,padding:'10px 8px',textAlign:'center'}}>
-              <div style={{fontSize:18,fontWeight:900,color:item.c,lineHeight:1}}>{item.v}</div>
-              <div style={{fontSize:9,color:T.txt3,marginTop:4,textTransform:'uppercase',letterSpacing:.4}}>{item.l}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{fontSize:11,color:T.txt3,lineHeight:1.5,marginTop:12}}>
-          Regra de privacidade: placares aparecem depois que o jogo começa. O campeão aparece depois do início da Copa.
+    <div style={{padding:'28px 14px 72px',maxWidth:1120,margin:'0 auto'}}>
+      <div style={{display:'flex',alignItems:'flex-end',gap:16,marginBottom:22,flexWrap:'wrap'}}>
+        <div style={{flex:1,minWidth:260}}>
+          <div style={{fontSize:13,color:T.txt3,marginBottom:8}}>Palpites gerais</div>
+          <h1 style={{fontSize:30,lineHeight:1.1,color:T.txt1,letterSpacing:-.8,marginBottom:8}}>O que o grupo já enviou</h1>
+          <p style={{fontSize:15,color:T.txt2,lineHeight:1.6,maxWidth:760}}>Acompanhe participação, campeão e palpites por jogo sem revelar placares antes da hora. Transparência sem spoiler.</p>
         </div>
       </div>
-      <details open={champLocked} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:12,boxShadow:shadow,marginBottom:10,overflow:'hidden'}}>
-        <summary style={{listStyle:'none',cursor:'pointer',padding:'12px 14px',display:'flex',alignItems:'center',gap:10}}>
-          <div style={{width:34,height:34,borderRadius:10,background:T.goldBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>🏆</div>
+
+      <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:18}}>
+        <StatTile value={champPredCount} label="campeões enviados" color={T.gold} bg={T.goldBg}/>
+        <StatTile value={lockedMatchCount} label="jogos reveláveis" color="#1D4ED8" bg="#DBEAFE"/>
+        <StatTile value={resultMatchCount} label="com resultado" color={T.accent} bg={T.accentLt}/>
+        <StatTile value={parts.length} label="participantes" color={T.txt1} bg={T.bg}/>
+      </div>
+
+      <div className="lux-card" style={{background:'#F8FAFC',border:'1px solid '+T.border,borderRadius:18,padding:'16px',boxShadow:shadow,marginBottom:18,display:'flex',gap:12,alignItems:'flex-start'}}>
+        <div style={{width:42,height:42,borderRadius:14,background:'#DBEAFE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>👀</div>
+        <div>
+          <div style={{fontSize:15,fontWeight:950,color:T.txt1}}>Sem spoiler até ser justo</div>
+          <div style={{fontSize:13,color:T.txt2,lineHeight:1.6,marginTop:3}}>Antes da bola rolar, aparece só se cada pessoa já enviou ou ainda está devendo. Depois do início do jogo, o placar fica visível para comparação.</div>
+        </div>
+      </div>
+
+      <details open={champLocked} style={{background:T.card,border:'1px solid '+T.border,borderRadius:16,boxShadow:shadow,marginBottom:14,overflow:'hidden'}}>
+        <summary style={{listStyle:'none',cursor:'pointer',padding:'14px 16px',display:'flex',alignItems:'center',gap:12}}>
+          <div style={{width:40,height:40,borderRadius:14,background:T.goldBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0}}>🏆</div>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:13,fontWeight:800,color:T.txt1}}>Campeão da Copa</div>
-            <div style={{fontSize:11,color:T.txt3,marginTop:2}}>
-              {champPredCount}/{parts.length} palpite{champPredCount!==1?'s':''} · {champLocked?'revelado':'oculto até '+champLockLabel}
-            </div>
+            <div style={{fontSize:14,fontWeight:950,color:T.txt1}}>Campeão da Copa</div>
+            <div style={{fontSize:11,color:T.txt3,marginTop:2}}>{champPredCount}/{parts.length} palpite{champPredCount!==1?'s':''} · {champLocked?'revelado':'oculto até '+champLockLabel}</div>
           </div>
-          <span style={{fontSize:15,color:T.txt3}}>⌄</span>
+          <span style={{fontSize:16,color:T.txt3}}>⌄</span>
         </summary>
-        <div style={{borderTop:`1px solid ${T.border}`}}>
-          {parts.length===0&&<div style={{padding:'14px',fontSize:12,color:T.txt3,textAlign:'center'}}>Nenhum participante ainda.</div>}
+        <div style={{borderTop:'1px solid '+T.border}}>
+          {parts.length===0&&<div style={{padding:'16px',fontSize:12,color:T.txt3,textAlign:'center'}}>Nenhum participante ainda.</div>}
           {parts.map((p,i)=>{
             const pick=champPreds[p];
             const isMe=p===me;
             const memberName=getName(p);
             const correct=champWinner&&pick===champWinner;
             return (
-              <div key={p} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:isMe?'#F0FDF4':'transparent',borderBottom:i<parts.length-1?`1px solid ${T.border}`:'none'}}>
-                <div style={{width:30,height:30,borderRadius:'50%',background:isMe?T.accentLt:T.bg,border:`1.5px solid ${isMe?T.accent:T.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800,color:isMe?T.accent:T.txt2,flexShrink:0}}>
-                  {memberName.charAt(0).toUpperCase()}
-                </div>
+              <div key={p} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 16px',background:isMe?'#F0FDF4':'transparent',borderBottom:i<parts.length-1?'1px solid '+T.border:'none'}}>
+                <div style={{width:32,height:32,borderRadius:'50%',background:isMe?T.accentLt:T.bg,border:'1.5px solid '+(isMe?T.accent:T.border),display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:900,color:isMe?T.accent:T.txt2,flexShrink:0}}>{memberName.charAt(0).toUpperCase()}</div>
                 <div style={{flex:1,minWidth:0}}>
-                  <span style={{fontSize:13,fontWeight:700,color:isMe?T.accent:T.txt1}}>{memberName}</span>
+                  <span style={{fontSize:13,fontWeight:900,color:isMe?T.accent:T.txt1}}>{memberName}</span>
                   {isMe&&<span style={{fontSize:10,color:T.txt3,marginLeft:4}}>você</span>}
                 </div>
-                {champLocked&&pick&&(
-                  <span style={{fontSize:12,fontWeight:800,padding:'5px 9px',borderRadius:8,background:correct?T.okBg:champWinner?T.errBg:T.bg,color:correct?T.ok:champWinner?T.err:T.txt1,border:`1px solid ${correct?T.accentMd:T.border}`}}>
-                    {fl(pick)} {pick}{correct?' ✓':champWinner?' ✗':''}
-                  </span>
-                )}
-                {champLocked&&!pick&&<span style={{fontSize:11,color:T.txt3,background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:'5px 9px'}}>sem palpite</span>}
-                {!champLocked&&pick&&<span style={{fontSize:11,fontWeight:700,color:T.accent,background:T.accentLt,border:`1px solid ${T.accentMd}`,borderRadius:8,padding:'5px 9px'}}>feito</span>}
-                {!champLocked&&!pick&&<span style={{fontSize:11,color:T.txt3,background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:'5px 9px'}}>faltando</span>}
+                {champLocked&&pick&&<span style={{fontSize:12,fontWeight:900,padding:'6px 10px',borderRadius:999,background:correct?T.okBg:champWinner?T.errBg:T.bg,color:correct?T.ok:champWinner?T.err:T.txt1,border:'1px solid '+(correct?T.accentMd:T.border)}}>{fl(pick)} {pick}{correct?' ✓':champWinner?' ×':''}</span>}
+                {champLocked&&!pick&&<span style={{fontSize:11,color:T.txt3,background:T.bg,border:'1px solid '+T.border,borderRadius:999,padding:'6px 10px'}}>sem palpite</span>}
+                {!champLocked&&pick&&<span style={{fontSize:11,fontWeight:900,color:T.accent,background:T.accentLt,border:'1px solid '+T.accentMd,borderRadius:999,padding:'6px 10px'}}>feito</span>}
+                {!champLocked&&!pick&&<span style={{fontSize:11,color:T.txt3,background:T.bg,border:'1px solid '+T.border,borderRadius:999,padding:'6px 10px'}}>faltando</span>}
               </div>
             );
           })}
         </div>
       </details>
 
-      <div style={{fontSize:12,fontWeight:700,color:T.txt3,margin:'16px 0 10px',letterSpacing:.8,textTransform:'uppercase'}}>Jogos por dia</div>
+      <SectionTitle title="Jogos por dia" text="Cada dia abre como lista suspensa; cada jogo abre o detalhe dos participantes."/>
       {generalDayGroups.length===0&&(
         <div style={{textAlign:'center',padding:'60px 0'}}>
           <div style={{fontSize:40,marginBottom:12}}>🗓️</div>
@@ -1737,12 +1827,12 @@ function Bolao(){
       )}
       {generalDayGroups.map((group,idx)=>(
         <details key={group.key} open={idx===0||group.matches.some(m=>isToday(m.dt))} style={{marginBottom:10}}>
-          <summary style={{listStyle:'none',cursor:'pointer',background:T.card,border:`1px solid ${T.border}`,borderRadius:12,padding:'12px 14px',boxShadow:shadow,display:'flex',alignItems:'center',gap:12}}>
+          <summary style={{listStyle:'none',cursor:'pointer',background:T.card,border:'1px solid '+T.border,borderRadius:14,padding:'13px 15px',boxShadow:shadow,display:'flex',alignItems:'center',gap:12}}>
             <div style={{flex:1}}>
-              <div style={{fontSize:13,fontWeight:800,color:T.txt1,textTransform:'capitalize'}}>{group.label}</div>
+              <div style={{fontSize:13,fontWeight:950,color:T.txt1,textTransform:'capitalize'}}>{group.label}</div>
               <div style={{fontSize:11,color:T.txt3,marginTop:2}}>{group.matches.length} jogo{group.matches.length!==1?'s':''}</div>
             </div>
-            <span style={{fontSize:15,color:T.txt3}}>⌄</span>
+            <span style={{fontSize:16,color:T.txt3}}>⌄</span>
           </summary>
           <div style={{paddingTop:10}}>
             {group.matches.map(m=>{
@@ -1750,16 +1840,16 @@ function Bolao(){
               const hasR=m.result&&m.result.home!=='';
               const predCount=parts.filter(p=>(preds[p]||{})[m.id]?.home!=='').length;
               return (
-                <details key={m.id} open={isToday(m.dt)} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:12,boxShadow:shadow,marginBottom:8,overflow:'hidden'}}>
-                  <summary style={{listStyle:'none',cursor:'pointer',padding:'12px 14px',display:'flex',alignItems:'center',gap:10}}>
+                <details key={m.id} open={isToday(m.dt)} style={{background:T.card,border:'1px solid '+T.border,borderRadius:14,boxShadow:shadow,marginBottom:8,overflow:'hidden'}}>
+                  <summary style={{listStyle:'none',cursor:'pointer',padding:'13px 15px',display:'flex',alignItems:'center',gap:10}}>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:13,fontWeight:800,color:T.txt1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{fl(m.home)} {m.home} × {m.away} {fl(m.away)}</div>
-                      <div style={{fontSize:11,color:T.txt3,marginTop:2}}>{fTime(m.dt)} · {m.ph==='Grupos'?`Grupo ${m.gr}`:m.ph} · {predCount}/{parts.length} palpites</div>
+                      <div style={{fontSize:13,fontWeight:950,color:T.txt1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{fl(m.home)} {m.home} × {m.away} {fl(m.away)}</div>
+                      <div style={{fontSize:11,color:T.txt3,marginTop:2}}>{fTime(m.dt)} · {m.ph==='Grupos'?'Grupo '+m.gr:m.ph} · {predCount}/{parts.length} palpites</div>
                     </div>
-                    {hasR&&<span style={{fontSize:13,fontWeight:900,color:T.gold,background:T.goldBg,padding:'5px 9px',borderRadius:8}}>{m.result.home}–{m.result.away}</span>}
-                    {!hasR&&<span style={{fontSize:10,fontWeight:700,color:st?'#1D4ED8':T.txt3,background:st?'#DBEAFE':T.bg,padding:'5px 9px',borderRadius:8}}>{st?'em jogo':'pré-jogo'}</span>}
+                    {hasR&&<span style={{fontSize:13,fontWeight:950,color:T.gold,background:T.goldBg,padding:'6px 10px',borderRadius:999}}>{m.result.home}-{m.result.away}</span>}
+                    {!hasR&&<span style={{fontSize:10,fontWeight:900,color:st?'#1D4ED8':T.txt3,background:st?'#DBEAFE':T.bg,padding:'6px 10px',borderRadius:999}}>{st?'em jogo':'pré-jogo'}</span>}
                   </summary>
-                  <div style={{borderTop:`1px solid ${T.border}`}}>
+                  <div style={{borderTop:'1px solid '+T.border}}>
                     {parts.length===0&&<div style={{padding:'14px',fontSize:12,color:T.txt3,textAlign:'center'}}>Nenhum participante ainda.</div>}
                     {parts.map((p,i)=>{
                       const pp=(preds[p]||{})[m.id];
@@ -1768,22 +1858,13 @@ function Bolao(){
                       const isMe=p===me;
                       const memberName=getName(p);
                       return (
-                        <div key={p} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:isMe?'#F0FDF4':'transparent',borderBottom:i<parts.length-1?`1px solid ${T.border}`:'none'}}>
-                          <div style={{width:30,height:30,borderRadius:'50%',background:isMe?T.accentLt:T.bg,border:`1.5px solid ${isMe?T.accent:T.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800,color:isMe?T.accent:T.txt2,flexShrink:0}}>
-                            {memberName.charAt(0).toUpperCase()}
-                          </div>
-                          <div style={{flex:1,minWidth:0}}>
-                            <span style={{fontSize:13,fontWeight:700,color:isMe?T.accent:T.txt1}}>{memberName}</span>
-                            {isMe&&<span style={{fontSize:10,color:T.txt3,marginLeft:4}}>você</span>}
-                          </div>
-                          {st&&hasPred&&(
-                            <span style={{fontSize:12,fontWeight:800,padding:'5px 9px',borderRadius:8,background:pts===3?T.okBg:pts===1?T.halfBg:pts===0?T.errBg:T.bg,color:pts===3?T.ok:pts===1?T.half:pts===0?T.err:T.txt1,border:`1px solid ${T.border}`}}>
-                              {pp.home}×{pp.away}{pts===3?' ⭐':pts===1?' ✓':pts===0?' ✗':''}
-                            </span>
-                          )}
-                          {st&&!hasPred&&<span style={{fontSize:11,color:T.txt3,background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:'5px 9px'}}>sem palpite</span>}
-                          {!st&&hasPred&&<span style={{fontSize:11,fontWeight:700,color:T.accent,background:T.accentLt,border:`1px solid ${T.accentMd}`,borderRadius:8,padding:'5px 9px'}}>feito</span>}
-                          {!st&&!hasPred&&<span style={{fontSize:11,color:T.txt3,background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:'5px 9px'}}>faltando</span>}
+                        <div key={p} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:isMe?'#F0FDF4':'transparent',borderBottom:i<parts.length-1?'1px solid '+T.border:'none'}}>
+                          <div style={{width:30,height:30,borderRadius:'50%',background:isMe?T.accentLt:T.bg,border:'1.5px solid '+(isMe?T.accent:T.border),display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:900,color:isMe?T.accent:T.txt2,flexShrink:0}}>{memberName.charAt(0).toUpperCase()}</div>
+                          <div style={{flex:1,minWidth:0}}><span style={{fontSize:13,fontWeight:800,color:isMe?T.accent:T.txt1}}>{memberName}</span>{isMe&&<span style={{fontSize:10,color:T.txt3,marginLeft:4}}>você</span>}</div>
+                          {st&&hasPred&&<span style={{fontSize:12,fontWeight:900,padding:'6px 10px',borderRadius:999,background:pts===3?T.okBg:pts===1?T.halfBg:pts===0?T.errBg:T.bg,color:pts===3?T.ok:pts===1?T.half:pts===0?T.err:T.txt1,border:'1px solid '+T.border}}>{pp.home}×{pp.away}{pts===3?' ⭐':pts===1?' ✓':pts===0?' ×':''}</span>}
+                          {st&&!hasPred&&<span style={{fontSize:11,color:T.txt3,background:T.bg,border:'1px solid '+T.border,borderRadius:999,padding:'6px 10px'}}>sem palpite</span>}
+                          {!st&&hasPred&&<span style={{fontSize:11,fontWeight:900,color:T.accent,background:T.accentLt,border:'1px solid '+T.accentMd,borderRadius:999,padding:'6px 10px'}}>feito</span>}
+                          {!st&&!hasPred&&<span style={{fontSize:11,color:T.txt3,background:T.bg,border:'1px solid '+T.border,borderRadius:999,padding:'6px 10px'}}>faltando</span>}
                         </div>
                       );
                     })}
@@ -1813,10 +1894,10 @@ function Bolao(){
           <nav style={{display:'flex',alignItems:'center',gap:22,fontSize:14}}>
             {[
               ['home','Início'],
-              ['matches','Palpites'],
+              ['matches','Seus Palpites'],
               ['ranking','Ranking'],
               ['rules','Regulamento'],
-              ['general','Gerais'],
+              ['general','Palpites gerais'],
               ...(isAdmin?[['admin','Admin']]:[]),
             ].map(([k,label])=>(
               <button key={k} onClick={()=>setTab(k)} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:14,color:tab===k?'#009C3B':'#111827',fontWeight:tab===k?800:500}}>{label}</button>
