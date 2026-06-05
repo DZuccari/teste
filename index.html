@@ -214,7 +214,9 @@ const shadowMd = '0 24px 60px rgba(17,24,39,.12),0 2px 6px rgba(17,24,39,.06)';
 // ── Constants ─────────────────────────────────────────────────────────────────
 const NAME_STORAGE_KEY = 'bolao2026_me';
 const REMINDER_STORAGE_KEY = 'bolao2026_reminder_enabled';
-const CHAMP_PTS = 10;
+const CHAMP_PTS = 25;
+const VICE_PTS = 20;
+const THIRD_PTS = 15;
 const CHAMP_RULE_LOCK_TS = 1781204400000; // 11/06/2026 16:00 BRT
 const FLAGS = {
   'México':'🇲🇽','África do Sul':'🇿🇦','Coreia do Sul':'🇰🇷','Tchéquia':'🇨🇿',
@@ -347,8 +349,14 @@ function calcPts(pred,result){
   if(!result||result.home===''||result.away==='') return null;
   const ph=+pred.home,pa=+pred.away,rh=+result.home,ra=+result.away;
   if(isNaN(ph)||isNaN(pa)) return null;
-  if(ph===rh&&pa===ra) return 3;
-  return (ph>pa?'H':ph<pa?'A':'D')===(rh>ra?'H':rh<ra?'A':'D')?1:0;
+  const predOutcome=ph>pa?'H':ph<pa?'A':'D';
+  const realOutcome=rh>ra?'H':rh<ra?'A':'D';
+  const oneScore=ph===rh||pa===ra;
+  if(ph===rh&&pa===ra) return 7;
+  if(predOutcome===realOutcome&&oneScore) return 4;
+  if(predOutcome===realOutcome) return 3;
+  if(oneScore) return 1;
+  return 0;
 }
 const fDate=dt=>new Date(dt).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'});
 const fTime=dt=>new Date(dt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'});
@@ -427,6 +435,7 @@ function Bolao(){
   const champLockDt = firstMatch?.dt || '';
   const champLocked = champLockDt ? started(champLockDt) : false;
   const champLockLabel = champLockDt ? `${fDate(champLockDt)} às ${fTime(champLockDt)}` : 'início do primeiro jogo';
+  const matchLocked=m=>m?.ph==='Grupos'?champLocked:started(m?.dt);
 
   const showToast=(msg,ok=true)=>{setToast({msg,ok});setTimeout(()=>setToast({msg:'',ok:true}),2600);};
   const getName = uid => partMeta[uid]?.name || 'Sem nome';
@@ -658,7 +667,7 @@ function Bolao(){
 
   const savePred=async(id)=>{
     const m=matches.find(x=>x.id===id);
-    if(!m||started(m.dt)){showToast('Palpite bloqueado para este jogo.',false);return;}
+    if(!m||matchLocked(m)){showToast('Palpite bloqueado para este jogo.',false);return;}
     const p=pi[id]||{home:'',away:''};
     const home=parseScore(p.home),away=parseScore(p.away);
     if(home===null||away===null){showToast('Placar inválido (0 a 20).',false);return;}
@@ -668,6 +677,30 @@ function Bolao(){
       showToast('Palpite salvo!');
     }catch{
       showToast('Erro ao salvar palpite.',false);
+    }finally{
+      setSaving(null);
+    }
+  };
+
+  const saveGroupPreds=async(groupMatches)=>{
+    const openMatches=groupMatches.filter(m=>!matchLocked(m));
+    if(openMatches.length===0){showToast('Palpites deste grupo já estão bloqueados.',false);return;}
+    const updates={};
+    for(const m of openMatches){
+      const p=pi[m.id]||{home:'',away:''};
+      const home=parseScore(p.home),away=parseScore(p.away);
+      if(home===null||away===null){
+        showToast(`Preencha placares válidos no Grupo ${m.gr}.`,false);
+        return;
+      }
+      updates[`predictions/${me}/${m.id}`]={home,away};
+    }
+    setSaving(`group-${groupMatches[0]?.gr||'x'}`);
+    try{
+      await ref('').update(updates);
+      showToast(`Grupo ${groupMatches[0]?.gr||''} salvo!`);
+    }catch{
+      showToast('Erro ao salvar grupo.',false);
     }finally{
       setSaving(null);
     }
@@ -835,7 +868,7 @@ function Bolao(){
     scopeMatches.forEach(m=>{
       const p=(preds[uid]||{})[m.id]; if(!p) return;
       const x=calcPts(p,m.result); if(x===null) return;
-      total++;pts+=x;if(x===3)exact++;else if(x===1)win++;else miss++;
+      total++;pts+=x;if(x===7)exact++;else if(x===4||x===3)win++;else miss++;
     });
     const champHit = includeChampion&&champWinner&&champPreds[uid]===champWinner;
     if(champHit) pts+=CHAMP_PTS;
@@ -855,7 +888,7 @@ function Bolao(){
   const resultMatchCount=scoredMatches.length;
   const progressPct=matches.length?Math.round(savedPredCount/matches.length*100):0;
   const pendingMatches=matches
-    .filter(m=>!started(m.dt)&&(!myPredMap[m.id]||myPredMap[m.id].home===''))
+    .filter(m=>!matchLocked(m)&&(!myPredMap[m.id]||myPredMap[m.id].home===''))
     .sort((a,b)=>new Date(a.dt)-new Date(b.dt));
   const urgentPendingAll=pendingMatches.filter(m=>new Date(m.dt).getTime()-Date.now()<=48*3600000);
   const urgentPending=urgentPendingAll.slice(0,4);
@@ -868,7 +901,7 @@ function Bolao(){
     matches.forEach(m=>{
       const p=(preds[me]||{})[m.id]; if(!p) return;
       const x=calcPts(p,m.result); if(x===null) return;
-      total++;pts+=x;if(x===3)exact++;else if(x===1)win++;else miss++;
+      total++;pts+=x;if(x===7)exact++;else if(x===4||x===3)win++;else miss++;
     });
     if(champWinner&&champPreds[me]===champWinner) pts+=CHAMP_PTS;
     const rank=board.findIndex(p=>p.uid===me)+1;
@@ -881,7 +914,7 @@ function Bolao(){
     if(!('Notification' in window)||Notification.permission!=='granted') return;
     const tick=()=>{
       const pending = matches
-        .filter(m=>!started(m.dt)&&(!(preds[me]||{})[m.id]||(preds[me]||{})[m.id].home===''))
+        .filter(m=>!matchLocked(m)&&(!(preds[me]||{})[m.id]||(preds[me]||{})[m.id].home===''))
         .sort((a,b)=>new Date(a.dt)-new Date(b.dt));
       const next = pending[0];
       if(!next) return;
@@ -900,7 +933,7 @@ function Bolao(){
   },[reminderEnabled,meReady,matches,preds,me,lastReminderMatch]);
 
   const predictionMatches=onlyMissing
-    ? matches.filter(m=>!started(m.dt)&&(!(preds[me]||{})[m.id]||(preds[me]||{})[m.id].home===''))
+    ? matches.filter(m=>!matchLocked(m)&&(!(preds[me]||{})[m.id]||(preds[me]||{})[m.id].home===''))
     : matches;
   const groupByDay=list=>{
     const groups=[];
@@ -959,15 +992,15 @@ function Bolao(){
 
   // ── Match Card ──────────────────────────────────────────────────────────────
   const MatchCard=({m})=>{
-    const st=started(m.dt);
+    const st=matchLocked(m);
     const hasR=m.result&&m.result.home!=='';
     const myS=(preds[me]||{})[m.id];
     const pts=myS?calcPts(myS,m.result):null;
     const inp=pi[m.id]||{home:'',away:''};
     const hasPred=myS&&myS.home!=='';
-    const ptBg=pts===3?T.okBg:pts===1?T.halfBg:pts===0?T.errBg:null;
-    const ptCol=pts===3?T.ok:pts===1?T.half:pts===0?T.err:null;
-    const ptLabel=pts===3?'⭐ Exato':pts===1?'✓ Vencedor':pts===0?'✗ Errou':null;
+    const ptBg=pts===7?T.okBg:(pts===4||pts===3)?T.halfBg:pts===1?'#DBEAFE':pts===0?T.errBg:null;
+    const ptCol=pts===7?T.ok:(pts===4||pts===3)?T.half:pts===1?'#1D4ED8':pts===0?T.err:null;
+    const ptLabel=pts===7?'⭐ Exato':pts===4?'✓ Vencedor + gol':pts===3?'✓ Vencedor':pts===1?'⚽ Gol':pts===0?'✗ Errou':null;
     const dirty=String(inp.home??'')!==String(myS?.home??'')||String(inp.away??'')!==String(myS?.away??'');
     const statusColor=hasR?T.gold:st?'#1D4ED8':hasPred?T.accent:T.half;
     const statusBg=hasR?T.goldBg:st?'#DBEAFE':hasPred?T.accentLt:T.halfBg;
@@ -1024,7 +1057,7 @@ function Bolao(){
             {parts.filter(p=>p!==me).map(p=>{
               const pp=(preds[p]||{})[m.id];
               const x=pp?calcPts(pp,m.result):null;
-              return <span key={p} style={{fontSize:10,fontWeight:600,padding:'3px 9px',borderRadius:16,background:x===3?T.okBg:x===1?T.halfBg:x===0?T.errBg:T.bg,color:x===3?T.ok:x===1?T.half:x===0?T.err:T.txt3,border:`1px solid ${T.border}`}}>{getName(p)}: {pp&&pp.home!==''?`${pp.home}×${pp.away}`:'–'}</span>;
+              return <span key={p} style={{fontSize:10,fontWeight:600,padding:'3px 9px',borderRadius:16,background:x===7?T.okBg:(x===4||x===3)?T.halfBg:x===1?'#DBEAFE':x===0?T.errBg:T.bg,color:x===7?T.ok:(x===4||x===3)?T.half:x===1?'#1D4ED8':x===0?T.err:T.txt3,border:`1px solid ${T.border}`}}>{getName(p)}: {pp&&pp.home!==''?`${pp.home}×${pp.away}`:'–'}</span>;
             })}
           </div>
         )}
@@ -1066,8 +1099,8 @@ function Bolao(){
           </div>
           <div className="login-score-grid" style={{position:'relative',display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginTop:24}}>
             {[
-              {n:'3',l:'placar exato'},
-              {n:'1',l:'vencedor/empate'},
+              {n:'7',l:'placar exato'},
+              {n:'3/4',l:'vencedor/empate'},
               {n:`+${CHAMP_PTS}`,l:'campeão'},
             ].map(x=>(
               <div key={x.l} className="brand-chip mini-tile" style={{background:'rgba(255,255,255,.13)',border:'1px solid rgba(255,255,255,.16)',borderRadius:16,padding:'14px 10px',textAlign:'center'}}>
@@ -1135,7 +1168,7 @@ function Bolao(){
             Esse nome aparece no ranking, nos palpites gerais e no comparativo por jogo. Dá para ser simples: nome, apelido ou nome de guerra.
           </p>
           <div style={{display:'flex',flexDirection:'column',gap:8,marginTop:18}}>
-            {['Palpites ficam salvos na sua conta Google.','Cada jogo trava no horário de início.','Campeão trava quando a Copa começar.'].map(txt=>(
+            {['Palpites ficam salvos na sua conta Google.','Fase de grupos trava no início da Copa.','Campeão trava quando a Copa começar.'].map(txt=>(
               <div key={txt} style={{display:'flex',gap:8,alignItems:'center',fontSize:12,color:'rgba(255,255,255,.82)'}}>
                 <span style={{width:20,height:20,borderRadius:8,background:'rgba(255,255,255,.16)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11}}>✓</span>
                 <span>{txt}</span>
@@ -1174,7 +1207,7 @@ function Bolao(){
 
       {[
         {title:'Palpites da Fase de Grupos',tag:myStats.missing===0?'Concluído':'Pendente',text:'Palpite o placar de todos os jogos da fase de grupos',meta:`${savedPredCount} de ${matches.length} jogos preenchidos`,ok:myStats.missing===0,disabled:false,action:()=>{setTab('matches');setOnlyMissing(myStats.missing>0);}},
-        {title:'Campeão da Copa',tag:champDone?'Concluído':'Pendente',text:'Escolha quem você acha que levanta a taça',meta:champDone?'Campeão preenchido':`Pendente até ${champLockLabel}`,ok:champDone,disabled:champLocked&&!champDone,action:()=>document.getElementById('champion-card')?.scrollIntoView({behavior:'smooth',block:'center'})},
+        {title:'Chaveamento e Campeão',tag:champDone?'Concluído':'Pendente',text:'Preveja classificados e escolha quem levanta a taça',meta:champDone?'Campeão preenchido':`Pendente até ${champLockLabel}`,ok:champDone,disabled:champLocked&&!champDone,action:()=>setTab('general')},
         {title:'Palpites das Eliminatórias',tag:'Ainda não disponível',text:'Disponível após o fim da fase de grupos',meta:'Aguarde a classificação oficial',ok:false,disabled:true,action:()=>{}},
       ].map(item=>(
         <button key={item.title} onClick={item.action} disabled={item.disabled} style={{width:'100%',display:'flex',alignItems:'center',gap:18,textAlign:'left',padding:'20px 22px',marginBottom:12,borderRadius:14,border:`1px solid ${item.disabled?T.border:item.ok?T.accentMd:'#FCD34D'}`,background:item.disabled?'#FFFFFF':item.ok?'#F0FDF4':'#FFFBEB',opacity:item.disabled?.68:1,cursor:item.disabled?'default':'pointer',boxShadow:'0 1px 2px rgba(15,23,42,.04)'}}>
@@ -1407,7 +1440,7 @@ function Bolao(){
       <div className="lux-card" style={{background:'#ECFDF5',border:`1px solid ${T.accentMd}`,borderRadius:14,padding:'14px 16px',boxShadow:shadow,display:'flex',alignItems:'center',gap:12,marginBottom:22}}>
         <div style={{width:34,height:34,borderRadius:12,background:'#D1FAE5',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>⏱</div>
         <div style={{fontSize:14,color:T.txt2,lineHeight:1.5}}>
-          Cada jogo trava automaticamente no horário de início. O palpite de campeão trava no primeiro jogo: <strong style={{color:T.txt1}}>{champLockLabel}</strong>.
+          A fase de grupos trava no início da Copa. O palpite de campeão também trava no primeiro jogo: <strong style={{color:T.txt1}}>{champLockLabel}</strong>.
         </div>
       </div>
 
@@ -1416,7 +1449,7 @@ function Bolao(){
           <StatTile value={savedPredCount} label="salvos" color={T.accent} bg={T.accentLt}/>
           <StatTile value={myStats.missing} label="faltando" color={myStats.missing?T.half:T.accent} bg={myStats.missing?T.halfBg:T.accentLt}/>
           <StatTile value={lockedMatchCount} label="fechados" color="#1D4ED8" bg="#DBEAFE"/>
-          <StatTile value={predictionDayGroups.length} label="dias" color={T.txt1} bg={T.bg}/>
+          <StatTile value={GROUPS.length} label="grupos" color={T.txt1} bg={T.bg}/>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
           <button className="pill" style={{padding:'10px 14px',borderRadius:999,border:`1px solid ${!onlyMissing?T.accent:T.border}`,fontSize:12,fontWeight:900,background:!onlyMissing?T.accentLt:T.card,color:!onlyMissing?T.accent:T.txt2,cursor:'pointer'}} onClick={()=>setOnlyMissing(false)}>
@@ -1434,26 +1467,82 @@ function Bolao(){
         <button disabled style={{border:'none',borderBottom:'2px solid transparent',background:'transparent',padding:'0 0 12px',fontSize:14,fontWeight:800,color:T.txt3,opacity:.7,cursor:'default'}}>Chaveamento em breve</button>
       </div>
 
-      <SectionTitle title="Lista suspensa por dia" text="Abra um dia, preencha os placares e feche quando quiser navegar mais rápido."/>
-      {predictionDayGroups.length===0&&<div style={{textAlign:'center',padding:'48px 0',color:T.txt3,fontSize:14}}>{onlyMissing?'Nenhum palpite faltando ✓':'Nenhuma partida encontrada.'}</div>}
-      {predictionDayGroups.map((group,idx)=>{
-        const missingCount=group.matches.filter(m=>!started(m.dt)&&(!(preds[me]||{})[m.id]||(preds[me]||{})[m.id].home==='')).length;
-        const doneCount=group.matches.length-missingCount;
-        return (
-          <details key={group.key} open={idx===0||onlyMissing||group.matches.some(m=>isToday(m.dt))} style={{marginBottom:10}}>
-            <summary style={{listStyle:'none',cursor:'pointer',background:T.card,border:`1px solid ${T.border}`,borderRadius:12,padding:'12px 14px',boxShadow:shadow,display:'flex',alignItems:'center',gap:12}}>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:800,color:T.txt1,textTransform:'capitalize'}}>{group.label}</div>
-                <div style={{fontSize:11,color:T.txt3,marginTop:2}}>{group.matches.length} jogo{group.matches.length!==1?'s':''} · {doneCount} salvo{doneCount!==1?'s':''} · {missingCount} faltando</div>
+      <SectionTitle title="Grupos" text="A tela segue o modelo do site de referência: um card por grupo e um botão para salvar os seis jogos daquele grupo."/>
+      {predictionMatches.filter(m=>m.ph==='Grupos').length===0&&<div style={{textAlign:'center',padding:'48px 0',color:T.txt3,fontSize:14}}>{onlyMissing?'Nenhum palpite faltando ✓':'Nenhuma partida de grupos encontrada.'}</div>}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(420px,1fr))',gap:16}}>
+        {GROUPS.map(g=>({g,matches:predictionMatches.filter(m=>m.ph==='Grupos'&&m.gr===g)})).filter(group=>group.matches.length>0).map(group=>{
+          const missingCount=group.matches.filter(m=>!matchLocked(m)&&(!(preds[me]||{})[m.id]||(preds[me]||{})[m.id].home==='')).length;
+          const doneCount=group.matches.length-missingCount;
+          const lockedGroup=group.matches.every(m=>matchLocked(m));
+          return (
+            <div key={group.g} className="lux-card" style={{background:T.card,border:'1px solid '+(missingCount&&!lockedGroup?T.accentMd:T.border),borderRadius:16,boxShadow:shadow,overflow:'hidden'}}>
+              <div style={{background:'#00732E',color:'#fff',padding:'11px 14px',display:'flex',alignItems:'center',gap:10}}>
+                <h3 style={{fontSize:15,fontWeight:950,flex:1}}>Grupo {group.g}</h3>
+                <span style={{fontSize:10,fontWeight:900,color:missingCount&&!lockedGroup?'#FEF3C7':'#BBF7D0'}}>{lockedGroup?'fechado':missingCount?'incompleto':'completo'}</span>
+                {!lockedGroup&&(
+                  <button className="btn-acc" onClick={()=>saveGroupPreds(group.matches)} disabled={saving==='group-'+group.g} style={{border:'none',background:'#16A34A',color:'#fff',borderRadius:8,padding:'7px 12px',fontSize:12,fontWeight:900,cursor:'pointer'}}>
+                    {saving==='group-'+group.g?'Salvando...':'Salvar'}
+                  </button>
+                )}
               </div>
-              <span style={{fontSize:15,color:T.txt3}}>⌄</span>
-            </summary>
-            <div style={{paddingTop:10}}>
-              {group.matches.map(m=><MatchCard key={m.id} m={m}/>)}
+              <div style={{padding:'10px 12px'}}>
+                {group.matches.map(m=>{
+                  const inp=pi[m.id]||{home:'',away:''};
+                  const myS=(preds[me]||{})[m.id];
+                  const hasPred=myS&&myS.home!=='';
+                  const locked=matchLocked(m);
+                  const hasR=m.result&&m.result.home!=='';
+                  const pts=hasPred?calcPts(myS,m.result):null;
+                  return (
+                    <div key={m.id} style={{display:'grid',gridTemplateColumns:'54px minmax(0,1fr) 44px 14px 44px minmax(0,1fr) 84px',gap:8,alignItems:'center',padding:'8px 0',borderBottom:'1px solid '+T.border}}>
+                      <span style={{fontSize:12,color:T.txt3}}>{new Date(m.dt).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',timeZone:'America/Sao_Paulo'})}</span>
+                      <span style={{fontSize:13,fontWeight:800,color:T.txt1,textAlign:'right',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{m.home}</span>
+                      {!locked?(
+                        <input className="score-inp" type="number" min="0" max="20" placeholder="" style={{...scoreInpSt,width:40,height:34,fontSize:16,borderRadius:8}} value={inp.home} onChange={e=>setPi(p=>({...p,[m.id]:{...p[m.id],home:e.target.value}}))}/>
+                      ):(
+                        <span style={{height:34,borderRadius:8,background:T.bg,border:'1px solid '+T.border,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:900,color:T.txt2}}>{hasPred?myS.home:'-'}</span>
+                      )}
+                      <span style={{fontSize:12,color:T.txt3,textAlign:'center'}}>x</span>
+                      {!locked?(
+                        <input className="score-inp" type="number" min="0" max="20" placeholder="" style={{...scoreInpSt,width:40,height:34,fontSize:16,borderRadius:8}} value={inp.away} onChange={e=>setPi(p=>({...p,[m.id]:{...p[m.id],away:e.target.value}}))}/>
+                      ):(
+                        <span style={{height:34,borderRadius:8,background:T.bg,border:'1px solid '+T.border,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:900,color:T.txt2}}>{hasPred?myS.away:'-'}</span>
+                      )}
+                      <span style={{fontSize:13,fontWeight:800,color:T.txt1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{m.away}</span>
+                      <span style={{fontSize:10,fontWeight:800,textAlign:'center',color:hasR?T.gold:locked?'#1D4ED8':hasPred?T.accent:T.txt3,background:hasR?T.goldBg:locked?'#DBEAFE':hasPred?T.accentLt:T.bg,borderRadius:999,padding:'5px 7px'}}>{hasR?((m.result.home)+'-'+(m.result.away)):locked?(hasPred?'Fechado':'Sem palpite'):hasPred?'Salvo':'Aguardando'}</span>
+                      {pts!==null&&<span style={{gridColumn:'1 / -1',fontSize:10,color:pts===7?T.ok:(pts>=3?T.half:pts===1?'#1D4ED8':T.err),fontWeight:800,textAlign:'right'}}>+{pts} ponto{pts!==1?'s':''}</span>}
+                    </div>
+                  );
+                })}
+                <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:T.txt3,paddingTop:9}}>
+                  <span>{doneCount} salvo{doneCount!==1?'s':''}</span>
+                  <span>{missingCount} faltando</span>
+                </div>
+              </div>
             </div>
-          </details>
-        );
-      })}
+          );
+        })}
+      </div>
+
+      {predictionMatches.some(m=>m.ph!=='Grupos')&&(
+        <>
+          <SectionTitle title="Eliminatórias" text="Ficam disponíveis fase a fase, depois que os confrontos forem definidos."/>
+          {predictionDayGroups.filter(group=>group.matches.some(m=>m.ph!=='Grupos')).map((group,idx)=>(
+            <details key={group.key} open={idx===0} style={{marginBottom:10}}>
+              <summary style={{listStyle:'none',cursor:'pointer',background:T.card,border:'1px solid '+T.border,borderRadius:12,padding:'12px 14px',boxShadow:shadow,display:'flex',alignItems:'center',gap:12}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:800,color:T.txt1,textTransform:'capitalize'}}>{group.label}</div>
+                  <div style={{fontSize:11,color:T.txt3,marginTop:2}}>{group.matches.filter(m=>m.ph!=='Grupos').length} jogo{group.matches.filter(m=>m.ph!=='Grupos').length!==1?'s':''}</div>
+                </div>
+                <span style={{fontSize:15,color:T.txt3}}>⌄</span>
+              </summary>
+              <div style={{paddingTop:10}}>
+                {group.matches.filter(m=>m.ph!=='Grupos').map(m=><MatchCard key={m.id} m={m}/>) }
+              </div>
+            </details>
+          ))}
+        </>
+      )}
       <div style={{height:88}}/>
     </div>
   );
@@ -1554,7 +1643,7 @@ function Bolao(){
                 {board.map(p=>{
                   const pp=(preds[p.uid]||{})[m.id];
                   const x=pp?calcPts(pp,m.result):null;
-                  return <span key={p.uid} style={{fontSize:11,fontWeight:700,padding:'4px 10px',borderRadius:999,background:x===3?T.okBg:x===1?T.halfBg:x===0?T.errBg:T.bg,color:x===3?T.ok:x===1?T.half:x===0?T.err:T.txt3,border:'1px solid '+T.border}}>{p.name}: {pp&&pp.home!==''?pp.home+'×'+pp.away:'-'}</span>;
+                  return <span key={p.uid} style={{fontSize:11,fontWeight:700,padding:'4px 10px',borderRadius:999,background:x===7?T.okBg:(x===4||x===3)?T.halfBg:x===1?'#DBEAFE':x===0?T.errBg:T.bg,color:x===7?T.ok:(x===4||x===3)?T.half:x===1?'#1D4ED8':x===0?T.err:T.txt3,border:'1px solid '+T.border}}>{p.name}: {pp&&pp.home!==''?pp.home+'×'+pp.away:'-'}</span>;
                 })}
               </div>
             </div>
@@ -1574,9 +1663,9 @@ function Bolao(){
       </div>
 
       <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:18}}>
-        <StatTile value="3" label="placar exato" color={T.ok} bg={T.okBg}/>
-        <StatTile value="1" label="vencedor/empate" color={T.half} bg={T.halfBg}/>
-        <StatTile value={'+'+CHAMP_PTS} label="campeão" color={T.gold} bg={T.goldBg}/>
+        <StatTile value="7" label="placar exato" color={T.ok} bg={T.okBg}/>
+        <StatTile value="4/3" label="vencedor/empate" color={T.half} bg={T.halfBg}/>
+        <StatTile value={CHAMP_PTS} label="campeão" color={T.gold} bg={T.goldBg}/>
         <StatTile value="0" label="erro" color={T.err} bg={T.errBg}/>
       </div>
 
@@ -1584,13 +1673,15 @@ function Bolao(){
         <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
           <SectionTitle title="Pontuação" text="O placar exato é o que realmente abre vantagem."/>
           {[
-            ['⭐','Placar exato','Acertou o placar completo do jogo: 3 pontos.'],
-            ['✓','Vencedor ou empate','Acertou o vencedor, ou que seria empate, mas errou o placar: 1 ponto.'],
-            ['🏆','Campeão da Copa','O campeão vale bônus de '+CHAMP_PTS+' pontos quando o admin definir o campeão oficial.'],
+            ['⭐','Placar exato','Acertou o placar completo do jogo: 7 pontos.'],
+            ['✓','Vencedor + gol','Acertou o vencedor/empate e os gols de um dos times: 4 pontos.'],
+            ['✓','Vencedor ou empate','Acertou apenas o vencedor/empate: 3 pontos.'],
+            ['⚽','Gol de um time','Errou o vencedor, mas acertou os gols de um dos times: 1 ponto.'],
+            ['🏆','Campeão, vice e 3º','Campeão vale '+CHAMP_PTS+', vice '+VICE_PTS+' e terceiro '+THIRD_PTS+' pontos.'],
             ['×','Erro','Errou o vencedor/empate: 0 ponto.']
           ].map((row,idx)=>(
             <div key={row[1]} style={{display:'flex',gap:12,padding:'13px 0',borderTop:idx?'1px solid '+T.border:'none'}}>
-              <div style={{width:34,height:34,borderRadius:12,background:idx===0?T.okBg:idx===1?T.halfBg:idx===2?T.goldBg:T.errBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>{row[0]}</div>
+              <div style={{width:34,height:34,borderRadius:12,background:idx===0?T.okBg:(idx===1||idx===2)?T.halfBg:idx===3?'#DBEAFE':idx===4?T.goldBg:T.errBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>{row[0]}</div>
               <div>
                 <div style={{fontSize:14,fontWeight:900,color:T.txt1}}>{row[1]}</div>
                 <div style={{fontSize:12,color:T.txt2,lineHeight:1.55,marginTop:2}}>{row[2]}</div>
@@ -1602,7 +1693,7 @@ function Bolao(){
         <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
           <SectionTitle title="Travas e privacidade" text="A parte que mantém o jogo justo."/>
           {[
-            ['⏱','Jogo','Cada palpite bloqueia no horário de início da partida.'],
+            ['⏱','Fase de grupos','Todos os palpites da fase de grupos bloqueiam no início do primeiro jogo da Copa.'],
             ['🏆','Campeão','Não pode criar nem alterar após o início do primeiro jogo da Copa.'],
             ['👀','Sem spoiler','Antes do jogo começar, os palpites dos outros ficam ocultos.'],
             ['⚖','Desempate','Pontos, exatos, vencedores, campeão, menos erros e ordem alfabética.']
@@ -1777,6 +1868,44 @@ function Bolao(){
         <StatTile value={parts.length} label="participantes" color={T.txt1} bg={T.bg}/>
       </div>
 
+      <div id="champion-card" className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow,marginBottom:18}}>
+        <div style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:14}}>
+          <div style={{width:44,height:44,borderRadius:15,background:T.goldBg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:22}}>🏆</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:16,fontWeight:950,color:T.txt1}}>Chaveamento e Campeão</div>
+            <div style={{fontSize:12,color:T.txt2,lineHeight:1.55,marginTop:3}}>No site de referência esta etapa reúne classificados, finalistas e pódio. Aqui mantive o campeão funcional e deixei a estrutura pronta para evoluir sem quebrar seus dados atuais.</div>
+          </div>
+          <span style={{fontSize:11,fontWeight:900,color:champDone?T.accent:T.half,background:champDone?T.accentLt:T.halfBg,borderRadius:999,padding:'6px 10px'}}>{champDone?'Concluído':'Pendente'}</span>
+        </div>
+        {!champLocked?(
+          <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) auto',gap:8,marginBottom:12}}>
+            <select className="inp" style={{...inpSt,padding:'10px 12px'}} value={champInput} onChange={e=>setChampInput(e.target.value)}>
+              <option value="">Escolha o campeão...</option>
+              {ALL_TEAMS.map(t=><option key={t} value={t}>{fl(t)} {t}</option>)}
+            </select>
+            <button className="btn-acc" style={{...btnAcc,padding:'10px 18px',whiteSpace:'nowrap'}} onClick={saveChamp}>Salvar</button>
+          </div>
+        ):(
+          <div style={{fontSize:13,color:T.txt2,marginBottom:12}}>
+            {champPreds[me]?`Seu campeão: ${fl(champPreds[me])} ${champPreds[me]}`:'Sem palpite de campeão'}
+            {champWinner&&<span style={{marginLeft:8,fontWeight:800,color:champWinner===champPreds[me]?T.ok:T.err}}>{champWinner===champPreds[me]?`✓ Acertou! +${CHAMP_PTS}pts`:`✗ Campeão: ${fl(champWinner)} ${champWinner}`}</span>}
+          </div>
+        )}
+        <div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+          {[
+            ['Classificados','0/62','Previsão completa dos classificados por fase'],
+            ['Finalistas','em breve','Times que chegam à final da Copa'],
+            ['Pódio','campeão ativo',`Campeão ${CHAMP_PTS}, vice ${VICE_PTS}, 3º ${THIRD_PTS}`],
+          ].map(item=>(
+            <div key={item[0]} style={{background:T.bg,border:'1px solid '+T.border,borderRadius:14,padding:'12px'}}>
+              <div style={{fontSize:11,fontWeight:950,color:T.txt3,textTransform:'uppercase',letterSpacing:.5}}>{item[0]}</div>
+              <div style={{fontSize:16,fontWeight:950,color:T.txt1,marginTop:4}}>{item[1]}</div>
+              <div style={{fontSize:10,color:T.txt3,lineHeight:1.4,marginTop:4}}>{item[2]}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="lux-card" style={{background:'#F8FAFC',border:'1px solid '+T.border,borderRadius:18,padding:'16px',boxShadow:shadow,marginBottom:18,display:'flex',gap:12,alignItems:'flex-start'}}>
         <div style={{width:42,height:42,borderRadius:14,background:'#DBEAFE',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>👀</div>
         <div>
@@ -1861,7 +1990,7 @@ function Bolao(){
                         <div key={p} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:isMe?'#F0FDF4':'transparent',borderBottom:i<parts.length-1?'1px solid '+T.border:'none'}}>
                           <div style={{width:30,height:30,borderRadius:'50%',background:isMe?T.accentLt:T.bg,border:'1.5px solid '+(isMe?T.accent:T.border),display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:900,color:isMe?T.accent:T.txt2,flexShrink:0}}>{memberName.charAt(0).toUpperCase()}</div>
                           <div style={{flex:1,minWidth:0}}><span style={{fontSize:13,fontWeight:800,color:isMe?T.accent:T.txt1}}>{memberName}</span>{isMe&&<span style={{fontSize:10,color:T.txt3,marginLeft:4}}>você</span>}</div>
-                          {st&&hasPred&&<span style={{fontSize:12,fontWeight:900,padding:'6px 10px',borderRadius:999,background:pts===3?T.okBg:pts===1?T.halfBg:pts===0?T.errBg:T.bg,color:pts===3?T.ok:pts===1?T.half:pts===0?T.err:T.txt1,border:'1px solid '+T.border}}>{pp.home}×{pp.away}{pts===3?' ⭐':pts===1?' ✓':pts===0?' ×':''}</span>}
+                          {st&&hasPred&&<span style={{fontSize:12,fontWeight:900,padding:'6px 10px',borderRadius:999,background:pts===7?T.okBg:(pts===4||pts===3)?T.halfBg:pts===1?'#DBEAFE':pts===0?T.errBg:T.bg,color:pts===7?T.ok:(pts===4||pts===3)?T.half:pts===1?'#1D4ED8':pts===0?T.err:T.txt1,border:'1px solid '+T.border}}>{pp.home}×{pp.away}{pts===7?' ⭐':(pts===4||pts===3)?' ✓':pts===1?' ⚽':pts===0?' ×':''}</span>}
                           {st&&!hasPred&&<span style={{fontSize:11,color:T.txt3,background:T.bg,border:'1px solid '+T.border,borderRadius:999,padding:'6px 10px'}}>sem palpite</span>}
                           {!st&&hasPred&&<span style={{fontSize:11,fontWeight:900,color:T.accent,background:T.accentLt,border:'1px solid '+T.accentMd,borderRadius:999,padding:'6px 10px'}}>feito</span>}
                           {!st&&!hasPred&&<span style={{fontSize:11,color:T.txt3,background:T.bg,border:'1px solid '+T.border,borderRadius:999,padding:'6px 10px'}}>faltando</span>}
