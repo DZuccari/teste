@@ -182,7 +182,9 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const auth = firebase.auth();
-const ref = path => db.ref('bolao2026/' + path);
+const TEST_MODE = true;
+const REF_ROOT = TEST_MODE ? 'bolao2026_teste' : 'bolao2026';
+const ref = path => db.ref(REF_ROOT + '/' + path);
 
 // ── Palette (60-30-10) ────────────────────────────────────────────────────────
 const T = {
@@ -217,7 +219,9 @@ const FLAGS = {
   'Portugal':'🇵🇹','RD Congo':'🇨🇩','Uzbequistão':'🇺🇿','Colômbia':'🇨🇴',
   'Inglaterra':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Croácia':'🇭🇷','Gana':'🇬🇭','Panamá':'🇵🇦',
 };
-const fl = t => FLAGS[t] || '🏳️';
+const seedLikeTeam=t=>/^\d+/.test(String(t||''));
+const displayTeam=t=>seedLikeTeam(t)?'A Definir':t;
+const fl = t => displayTeam(t)==='A Definir' ? '\u{1F3DF}\uFE0F' : (FLAGS[displayTeam(t)] || '\u{1F3F3}\uFE0F');
 const ALL_TEAMS = Object.keys(FLAGS).sort();
 const PHASES = ['Grupos','32-avos','Oitavas','Quartas','Semis','3º Lugar','Final'];
 const GROUPS = ['A','B','C','D','E','F','G','H','I','J','K','L'];
@@ -232,7 +236,7 @@ const emptyBracket=()=>BRACKET_PHASES.reduce((acc,phase)=>({...acc,[phase.key]:A
 const emptyPodium=()=>({champ:'',vice:'',third:''});
 
 const BASE_MATCHES = [
-  {id:'A1',ph:'Grupos',gr:'A',home:'México',away:'África do Sul',dt:'2026-06-11T16:00:00-03:00',venue:'Cidade do México'},
+  {id:'A1',ph:'Grupos',gr:'A',home:'Mexico',away:'Africa do Sul',dt:new Date(Date.now()+24*60*60*1000).toISOString(),venue:'JOGO TESTE - Aberto agora'},
   {id:'A2',ph:'Grupos',gr:'A',home:'Coreia do Sul',away:'Tchéquia',dt:'2026-06-11T23:00:00-03:00',venue:'Guadalajara'},
   {id:'A3',ph:'Grupos',gr:'A',home:'Tchéquia',away:'África do Sul',dt:'2026-06-18T13:00:00-03:00',venue:'Atlanta'},
   {id:'A4',ph:'Grupos',gr:'A',home:'México',away:'Coreia do Sul',dt:'2026-06-18T22:00:00-03:00',venue:'Guadalajara'},
@@ -304,38 +308,6 @@ const BASE_MATCHES = [
   {id:'L4',ph:'Grupos',gr:'L',home:'Panamá',away:'Croácia',dt:'2026-06-23T20:00:00-03:00',venue:'Toronto'},
   {id:'L5',ph:'Grupos',gr:'L',home:'Panamá',away:'Inglaterra',dt:'2026-06-27T18:00:00-03:00',venue:'Nova York'},
   {id:'L6',ph:'Grupos',gr:'L',home:'Croácia',away:'Gana',dt:'2026-06-27T18:00:00-03:00',venue:'Filadélfia'},
-  {id:'R32_01',ph:'32-avos',gr:'',home:'2º A',away:'2º B',dt:'2026-06-28T16:00:00-03:00',venue:'Los Angeles'},
-  {id:'R32_02',ph:'32-avos',gr:'',home:'1º C',away:'2º F',dt:'2026-06-29T14:00:00-03:00',venue:'Houston'},
-  {id:'R32_03',ph:'32-avos',gr:'',home:'1º E',away:'3º(ABCDF)',dt:'2026-06-29T17:30:00-03:00',venue:'Boston'},
-  {id:'R32_04',ph:'32-avos',gr:'',home:'1º F',away:'2º C',dt:'2026-06-29T22:00:00-03:00',venue:'Monterrey'},
-  {id:'R32_05',ph:'32-avos',gr:'',home:'2º E',away:'2º I',dt:'2026-06-30T14:00:00-03:00',venue:'Dallas'},
-  {id:'R32_06',ph:'32-avos',gr:'',home:'1º I',away:'3º(CDFGH)',dt:'2026-06-30T18:00:00-03:00',venue:'Nova York'},
-  {id:'R32_07',ph:'32-avos',gr:'',home:'1º A',away:'3º(CEFHI)',dt:'2026-06-30T22:00:00-03:00',venue:'Cidade do México'},
-  {id:'R32_08',ph:'32-avos',gr:'',home:'1º L',away:'3º(EHIJK)',dt:'2026-07-01T13:00:00-03:00',venue:'Atlanta'},
-  {id:'R32_09',ph:'32-avos',gr:'',home:'1º G',away:'3º(AEHIJ)',dt:'2026-07-01T17:00:00-03:00',venue:'Seattle'},
-  {id:'R32_10',ph:'32-avos',gr:'',home:'1º D',away:'3º(BEFIJ)',dt:'2026-07-01T21:00:00-03:00',venue:'São Francisco'},
-  {id:'R32_11',ph:'32-avos',gr:'',home:'1º B',away:'3º(EFGIJ)',dt:'2026-07-02T00:00:00-03:00',venue:'Vancouver'},
-  {id:'R32_12',ph:'32-avos',gr:'',home:'1º H',away:'2º J',dt:'2026-07-02T16:00:00-03:00',venue:'Los Angeles'},
-  {id:'R32_13',ph:'32-avos',gr:'',home:'2º K',away:'2º L',dt:'2026-07-02T20:00:00-03:00',venue:'Toronto'},
-  {id:'R32_14',ph:'32-avos',gr:'',home:'2º D',away:'2º G',dt:'2026-07-03T15:00:00-03:00',venue:'Dallas'},
-  {id:'R32_15',ph:'32-avos',gr:'',home:'1º J',away:'2º H',dt:'2026-07-03T17:00:00-03:00',venue:'Atlanta'},
-  {id:'R32_16',ph:'32-avos',gr:'',home:'1º K',away:'3º(DEIJL)',dt:'2026-07-03T22:30:00-03:00',venue:'Kansas City'},
-  {id:'R16_01',ph:'Oitavas',gr:'',home:'A Definir',away:'A Definir',dt:'2026-07-04T14:00:00-03:00',venue:'Houston'},
-  {id:'R16_02',ph:'Oitavas',gr:'',home:'A Definir',away:'A Definir',dt:'2026-07-04T18:00:00-03:00',venue:'Filadélfia'},
-  {id:'R16_03',ph:'Oitavas',gr:'',home:'A Definir',away:'A Definir',dt:'2026-07-05T17:00:00-03:00',venue:'Nova Jersey'},
-  {id:'R16_04',ph:'Oitavas',gr:'',home:'A Definir',away:'A Definir',dt:'2026-07-05T21:00:00-03:00',venue:'Cidade do México'},
-  {id:'R16_05',ph:'Oitavas',gr:'',home:'A Definir',away:'A Definir',dt:'2026-07-06T15:00:00-03:00',venue:'Dallas'},
-  {id:'R16_06',ph:'Oitavas',gr:'',home:'A Definir',away:'A Definir',dt:'2026-07-06T20:00:00-03:00',venue:'Seattle'},
-  {id:'R16_07',ph:'Oitavas',gr:'',home:'A Definir',away:'A Definir',dt:'2026-07-07T13:00:00-03:00',venue:'Atlanta'},
-  {id:'R16_08',ph:'Oitavas',gr:'',home:'A Definir',away:'A Definir',dt:'2026-07-07T17:00:00-03:00',venue:'Vancouver'},
-  {id:'QF1',ph:'Quartas',gr:'',home:'A Definir',away:'A Definir',dt:'2026-07-09T17:00:00-03:00',venue:'Boston'},
-  {id:'QF2',ph:'Quartas',gr:'',home:'A Definir',away:'A Definir',dt:'2026-07-10T16:00:00-03:00',venue:'Los Angeles'},
-  {id:'QF3',ph:'Quartas',gr:'',home:'A Definir',away:'A Definir',dt:'2026-07-11T18:00:00-03:00',venue:'Miami'},
-  {id:'QF4',ph:'Quartas',gr:'',home:'A Definir',away:'A Definir',dt:'2026-07-11T21:00:00-03:00',venue:'Kansas City'},
-  {id:'SF1',ph:'Semis',gr:'',home:'A Definir',away:'A Definir',dt:'2026-07-14T16:00:00-03:00',venue:'Dallas'},
-  {id:'SF2',ph:'Semis',gr:'',home:'A Definir',away:'A Definir',dt:'2026-07-15T16:00:00-03:00',venue:'Dallas'},
-  {id:'3PL',ph:'3º Lugar',gr:'',home:'A Definir',away:'A Definir',dt:'2026-07-18T18:00:00-03:00',venue:'Miami'},
-  {id:'FIN',ph:'Final',gr:'',home:'A Definir',away:'A Definir',dt:'2026-07-19T16:00:00-03:00',venue:'Nova York'},
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -354,7 +326,16 @@ function calcPts(pred,result){
 }
 const fDate=dt=>new Date(dt).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'});
 const fTime=dt=>new Date(dt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'});
-const dayKeySP=dt=>new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(dt));
+const spDayFormatter=new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric'});
+const dayKeyCache=new Map();
+const dayKeySP=dt=>{
+  const cacheKey=dt instanceof Date?dt.getTime():String(dt);
+  const cached=dayKeyCache.get(cacheKey);
+  if(cached) return cached;
+  const key=spDayFormatter.format(new Date(dt));
+  dayKeyCache.set(cacheKey,key);
+  return key;
+};
 const started=dt=>new Date(dt).getTime()<=Date.now();
 const isToday=dt=>dayKeySP(dt)===dayKeySP(new Date());
 const isUpcoming=dt=>{const h=(new Date(dt).getTime()-Date.now())/3600000;return h>0&&h<=24;};
@@ -364,6 +345,13 @@ const timeUntilShort=dt=>{
   const hours=Math.round(mins/60);
   if(hours<48) return `${hours}h`;
   return `${Math.round(hours/24)}d`;
+};
+const toDateTimeLocal=dt=>{
+  if(!dt) return '';
+  const d=new Date(dt);
+  if(Number.isNaN(d.getTime())) return '';
+  const pad=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 const normalizeName=value=>value.trim().replace(/\s+/g,' ');
 const isValidName=name=>name.length>=2&&name.length<=24&&!/[.#$\[\]/]/.test(name);
@@ -434,17 +422,30 @@ function Bolao(){
   const [saving,setSaving]=useState(null);
   const [toast,setToast]=useState({msg:'',ok:true});
   const [boot,setBoot]=useState(true);
-  const [newM,setNewM]=useState({home:'',away:'',ph:'Grupos',gr:'A',dt:'',venue:''});
-  const isAdmin = !!(me && adminIds[me]);
+  const [newM,setNewM]=useState({home:'',away:'',ph:'Oitavas',gr:'',dt:'',venue:''});
+  const [matchEdits,setMatchEdits]=useState({});
+  const isAdmin = TEST_MODE || !!(me && adminIds[me]);
   const firstMatch = matches[0] || BASE_MATCHES[0] || null;
   const champLockDt = firstMatch?.dt || '';
   const champLocked = champLockDt ? started(champLockDt) : false;
   const champLockLabel = champLockDt ? `${fDate(champLockDt)} às ${fTime(champLockDt)}` : 'início do primeiro jogo';
-  const unlockAt=m=>new Date(m.dt).getTime()-PREDICTION_OPEN_MS;
+  const matchListForUnlock=matches&&matches.length?matches:BASE_MATCHES;
+  const dayFirstKickoffByKey=React.useMemo(()=>{
+    const out={};
+    matchListForUnlock.forEach(m=>{
+      const key=dayKeySP(m.dt);
+      const ts=new Date(m.dt).getTime();
+      if(Number.isFinite(ts)&&(out[key]===undefined||ts<out[key])) out[key]=ts;
+    });
+    return out;
+  },[matches]);
+  const dayFirstKickoffMs=m=>dayFirstKickoffByKey[dayKeySP(m.dt)]??new Date(m.dt).getTime();
+  const unlockAt=m=>dayFirstKickoffMs(m)-PREDICTION_OPEN_MS;
   const predictionOpen=m=>Date.now()>=unlockAt(m);
   const unlockLabel=m=>`${new Date(unlockAt(m)).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',timeZone:'America/Sao_Paulo'})} às ${new Date(unlockAt(m)).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'})}`;
   const matchLocked=m=>started(m?.dt);
-  const canEditMatch=m=>m&&predictionOpen(m)&&!matchLocked(m);
+  const teamsDefined=m=>m&&displayTeam(m.home)!=='A Definir'&&displayTeam(m.away)!=='A Definir';
+  const canEditMatch=m=>m&&teamsDefined(m)&&predictionOpen(m)&&!matchLocked(m);
   const normalizeBracket=obj=>BRACKET_PHASES.reduce((acc,phase)=>{
     const arr=Array.isArray(obj?.[phase.key])?obj[phase.key]:[];
     acc[phase.key]=Array.from({length:phase.count},(_,i)=>arr[i]||'');
@@ -503,7 +504,7 @@ function Bolao(){
     };
 
     ref('matches').once('value').then(snap=>{
-      if(!snap.val()&&isAdmin){
+      if(!snap.val()&&(isAdmin||TEST_MODE)){
         const obj={};
         BASE_MATCHES.forEach(m=>{obj[m.id]=m;});
         ref('matches').set(obj).catch(()=>{});
@@ -524,12 +525,17 @@ function Bolao(){
 
     const matchesUnsub = matchesRef.on('value', snap=>{
       if(!live) return;
-      const val=snap.val()||{};
-      const arr=Object.values(val).sort((a,b)=>new Date(a.dt)-new Date(b.dt));
+      const val=snap.val();
+      const arr=Object.values(val||Object.fromEntries(BASE_MATCHES.map(m=>[m.id,m]))).sort((a,b)=>new Date(a.dt)-new Date(b.dt));
       setMatches(arr);
       const riInit={};
-      arr.forEach(m=>{riInit[m.id]=m.result||{home:'',away:''};});
+      const editInit={};
+      arr.forEach(m=>{
+        riInit[m.id]=m.result||{home:'',away:''};
+        editInit[m.id]={home:m.home||'',away:m.away||'',ph:m.ph||'Oitavas',gr:m.gr||'',dt:toDateTimeLocal(m.dt),venue:m.venue||''};
+      });
       setRi(riInit);
+      setMatchEdits(editInit);
       setBoot(false);
     }, err=>onReadError(err,'matches.on'));
 
@@ -758,7 +764,7 @@ function Bolao(){
     }
     setSaving(`group-${groupMatches[0]?.gr||'x'}`);
     try{
-      await ref('').update(updates);
+      await db.ref(REF_ROOT).update(updates);
       showToast(`Grupo ${groupMatches[0]?.gr||''} salvo!`);
     }catch{
       showToast('Erro ao salvar grupo.',false);
@@ -898,12 +904,47 @@ function Bolao(){
     try{
       await ref('matches/'+id).set(m);
       await logAdminAction('add_match',{id,home:m.home,away:m.away,dt:m.dt});
-      setNewM({home:'',away:'',ph:'Grupos',gr:'A',dt:'',venue:''});
+      setNewM({home:'',away:'',ph:'Oitavas',gr:'',dt:'',venue:''});
       showToast('Partida adicionada!');
     }catch{
       showToast('Erro ao adicionar partida.',false);
     }
   };
+  const updateMatch=async(id)=>{
+    if(!isAdmin){showToast('Acao permitida so para admin.',false);return;}
+    const edit=matchEdits[id];
+    if(!edit){showToast('Confronto nao encontrado.',false);return;}
+    if(!edit.home||!edit.away||!edit.dt){showToast('Preencha times e data.',false);return;}
+    const dtObj=new Date(edit.dt);
+    if(Number.isNaN(dtObj.getTime())){showToast('Data invalida.',false);return;}
+    const data={home:edit.home.trim(),away:edit.away.trim(),ph:edit.ph||'Oitavas',gr:edit.ph==='Grupos'?(edit.gr||'A'):'',dt:dtObj.toISOString(),venue:(edit.venue||'').trim()};
+    try{
+      await ref('matches/'+id).update(data);
+      await logAdminAction('update_match',{id,home:data.home,away:data.away,ph:data.ph,dt:data.dt});
+      showToast('Confronto atualizado!');
+    }catch{
+      showToast('Erro ao atualizar confronto.',false);
+    }
+  };
+
+  const removeMatch=async(id)=>{
+    if(!isAdmin){showToast('Acao permitida so para admin.',false);return;}
+    const m=matches.find(x=>x.id===id);
+    if(!m){showToast('Confronto nao encontrado.',false);return;}
+    const label=m.home+' x '+m.away;
+    if(!window.confirm('Remover '+label+'? Isso tambem apaga palpites deste jogo.')) return;
+    const updates={};
+    updates['matches/'+id]=null;
+    parts.forEach(uid=>{updates['predictions/'+uid+'/'+id]=null;});
+    try{
+      await ref('').update(updates);
+      await logAdminAction('remove_match',{id,home:m.home,away:m.away,ph:m.ph});
+      showToast('Confronto removido.');
+    }catch{
+      showToast('Erro ao remover confronto.',false);
+    }
+  };
+
   const copyLink=()=>{
     navigator.clipboard.writeText(window.location.href)
       .then(()=>showToast('Link copiado! 🔗'))
@@ -1052,7 +1093,7 @@ function Bolao(){
   const pendingMatches=matches
     .filter(m=>!matchLocked(m)&&(!myPredMap[m.id]||myPredMap[m.id].home===''))
     .sort((a,b)=>new Date(a.dt)-new Date(b.dt));
-  const urgentPendingAll=pendingMatches.filter(m=>new Date(m.dt).getTime()-Date.now()<=48*3600000);
+  const urgentPendingAll=pendingMatches.filter(m=>canEditMatch(m));
   const urgentPending=urgentPendingAll.slice(0,4);
   const nextMatches=matches.filter(m=>!started(m.dt)).sort((a,b)=>new Date(a.dt)-new Date(b.dt)).slice(0,4);
   const champDone=!!champPreds[me];
@@ -1087,10 +1128,17 @@ function Bolao(){
   const podiumMine=podiumFor(me);
   const podiumFilled=[podiumMine.champ,podiumMine.vice,podiumMine.third].filter(Boolean).length;
   const podiumDone=podiumFilled===3;
-  const knockoutMatches=matches.filter(m=>m.ph!=='Grupos');
+  const knockoutAdminMatches=matches.filter(m=>m.ph!=='Grupos');
+  const knockoutMatches=knockoutAdminMatches.filter(m=>teamsDefined(m));
+  const startedTodayMatches=matches.filter(m=>isToday(m.dt)&&started(m.dt)).sort((a,b)=>new Date(a.dt)-new Date(b.dt));
   const savedKnockoutPredCount=knockoutMatches.filter(m=>myPredMap[m.id]&&myPredMap[m.id].home!=='').length;
-  const stageDoneCount=(savedGroupPredCount===groupMatches.length&&groupMatches.length?1:0)+(knockoutMatches.length&&savedKnockoutPredCount===knockoutMatches.length?1:0);
-  const actionCount=urgentPendingAll.length;
+  const groupAvailableMatches=groupMatches.filter(m=>canEditMatch(m));
+  const knockoutAvailableMatches=knockoutMatches.filter(m=>canEditMatch(m));
+  const needsPrediction=m=>!myPredMap[m.id]||myPredMap[m.id].home===''||myPredMap[m.id].away==='';
+  const groupAvailablePendingCount=groupAvailableMatches.filter(needsPrediction).length;
+  const knockoutAvailablePendingCount=knockoutAvailableMatches.filter(needsPrediction).length;
+  const stageDoneCount=(groupAvailablePendingCount===0?1:0)+(knockoutAvailablePendingCount===0?1:0);
+  const actionCount=groupAvailablePendingCount+knockoutAvailablePendingCount;
 
   const myStats=(()=>{
     let pts=0,exact=0,win=0,miss=0,total=0;
@@ -1130,7 +1178,7 @@ function Bolao(){
   },[reminderEnabled,meReady,matches,preds,me,lastReminderMatch]);
 
   const predictionMatches=onlyMissing
-    ? matches.filter(m=>!matchLocked(m)&&(!(preds[me]||{})[m.id]||(preds[me]||{})[m.id].home===''))
+    ? matches.filter(m=>canEditMatch(m))
     : matches;
   const groupByDay=list=>{
     const groups=[];
@@ -1151,7 +1199,7 @@ function Bolao(){
   };
   const predictionDayGroups=groupByDay(predictionMatches);
   const groupPredictionDayGroups=groupByDay(predictionMatches.filter(m=>m.ph==='Grupos'));
-  const knockoutPredictionDayGroups=groupByDay(predictionMatches.filter(m=>m.ph!=='Grupos'));
+  const knockoutPredictionDayGroups=groupByDay(predictionMatches.filter(m=>m.ph!=='Grupos'&&teamsDefined(m)));
   const generalDayGroups=groupByDay(matches);
   const dailyBoards=groupByDay(scoredMatches).map(group=>({
     ...group,
@@ -1233,7 +1281,7 @@ function Bolao(){
         <div style={{display:'flex',alignItems:'center',padding:'16px 14px 12px'}}>
           <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'flex-start',gap:4}}>
             <span style={{fontSize:40,lineHeight:1}}>{fl(m.home)}</span>
-            <span style={{fontSize:12,fontWeight:700,color:T.txt1,maxWidth:90,lineHeight:1.3,marginTop:2}}>{m.home}</span>
+            <span style={{fontSize:12,fontWeight:700,color:T.txt1,maxWidth:90,lineHeight:1.3,marginTop:2}}>{displayTeam(m.home)}</span>
           </div>
           <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,padding:'0 8px',minWidth:130}}>
             {hasR&&(
@@ -1263,7 +1311,7 @@ function Bolao(){
           </div>
           <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4}}>
             <span style={{fontSize:40,lineHeight:1}}>{fl(m.away)}</span>
-            <span style={{fontSize:12,fontWeight:700,color:T.txt1,maxWidth:90,lineHeight:1.3,textAlign:'right',marginTop:2}}>{m.away}</span>
+            <span style={{fontSize:12,fontWeight:700,color:T.txt1,maxWidth:90,lineHeight:1.3,textAlign:'right',marginTop:2}}>{displayTeam(m.away)}</span>
           </div>
         </div>
         {st&&parts.filter(p=>p!==me).length>0&&(
@@ -1409,27 +1457,28 @@ function Bolao(){
     <div style={{padding:'28px 14px 72px',maxWidth:760,margin:'0 auto'}}>
       <div style={{fontSize:13,color:T.txt3,marginBottom:6}}>{new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}</div>
       <h1 style={{fontSize:30,lineHeight:1.1,color:T.txt1,letterSpacing:-.8,marginBottom:8}}>Olá, {meName||'amigo'}! 👋</h1>
-      <p style={{fontSize:15,color:T.txt2,marginBottom:28}}>Os palpites liberam 2 dias antes de cada jogo.</p>
+      <p style={{fontSize:15,color:T.txt2,marginBottom:28}}>Os jogos de cada dia liberam juntos, 2 dias antes do primeiro jogo do dia.</p>
       <div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:T.txt3,marginBottom:8}}><span>{stageDoneCount} de 2 etapas concluídas</span><span>{Math.round(stageDoneCount/2*100)}%</span></div>
       <div style={{height:8,background:'#F1F5F9',borderRadius:999,overflow:'hidden',marginBottom:28}}><div style={{height:'100%',width:`${Math.round(stageDoneCount/2*100)}%`,background:'#009C3B',borderRadius:999}}/></div>
       {[
-        {title:'Palpites da Fase de Grupos',tag:savedGroupPredCount===groupMatches.length&&groupMatches.length?'Concluído':'Por dia',text:'Preencha os jogos conforme cada dia da Copa for liberando',meta:`${savedGroupPredCount} de ${groupMatches.length} jogos preenchidos`,ok:savedGroupPredCount===groupMatches.length&&groupMatches.length,action:()=>{setTab('matches');setMatchView('groups');setOnlyMissing(false);}},
-        {title:'Palpites das Eliminatórias',tag:'Depois da fase de grupos',text:'Os jogos do mata-mata continuam como palpites de placar',meta:knockoutMatches.length?`${savedKnockoutPredCount} de ${knockoutMatches.length} jogos preenchidos`:'Aguardando confrontos',ok:knockoutMatches.length&&savedKnockoutPredCount===knockoutMatches.length,action:()=>{setTab('matches');setMatchView('knockout');setOnlyMissing(false);}},
+        {title:'Palpites da Fase de Grupos',tag:groupAvailablePendingCount?`${groupAvailablePendingCount} para palpitar`:'Nada aberto',text:'Mostra somente o que está liberado para palpitar agora',meta:`${groupAvailablePendingCount} jogos para palpitar agora · ${groupAvailableMatches.length} disponíveis`,ok:groupAvailablePendingCount===0,action:()=>{setTab('matches');setMatchView('groups');setOnlyMissing(groupAvailablePendingCount>0);}},
+        {title:'Palpites das Eliminatórias',tag:knockoutAvailablePendingCount?`${knockoutAvailablePendingCount} para palpitar`:'Nada aberto',text:'Mata-mata continua como palpite de placar por jogo',meta:knockoutMatches.length?`${knockoutAvailablePendingCount} jogos para palpitar agora · ${knockoutAvailableMatches.length} disponíveis`:'Aguardando confrontos',ok:knockoutAvailablePendingCount===0,action:()=>{setTab('matches');setMatchView('knockout');setOnlyMissing(knockoutAvailablePendingCount>0);}},
       ].map(item=>(
         <button key={item.title} onClick={item.action} style={{width:'100%',display:'flex',alignItems:'center',gap:18,textAlign:'left',padding:'20px 22px',marginBottom:12,borderRadius:14,border:'1px solid '+(item.ok?T.accentMd:'#FCD34D'),background:item.ok?'#F0FDF4':'#FFFBEB',cursor:'pointer',boxShadow:'0 1px 2px rgba(15,23,42,.04)'}}><span style={{width:42,height:42,borderRadius:'50%',background:item.ok?T.accent:'#FFB000',color:'#fff',fontSize:20,fontWeight:900,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{item.ok?'✓':'!'}</span><span style={{flex:1,minWidth:0}}><span style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}><strong style={{fontSize:16,color:T.txt1}}>{item.title}</strong><em style={{fontStyle:'normal',fontSize:11,fontWeight:800,color:item.ok?T.accent:T.half,background:item.ok?T.accentLt:T.halfBg,borderRadius:999,padding:'4px 9px'}}>{item.tag}</em></span><span style={{display:'block',fontSize:13,color:T.txt2,marginTop:4,lineHeight:1.45}}>{item.text}</span><span style={{display:'block',fontSize:12,fontWeight:800,color:item.ok?T.accent:T.txt1,marginTop:6}}>{item.meta}</span></span><span style={{fontSize:28,color:T.txt3}}>›</span></button>
       ))}
-      <div style={{marginTop:16,padding:'14px 16px',border:'1px solid #BFDBFE',background:'#EFF6FF',borderRadius:12,fontSize:13,color:'#1E3A8A',lineHeight:1.55}}>Os jogos ficam bloqueados até 48 horas antes do início. Quando a janela abre, você pode salvar ou atualizar seu placar até a bola rolar.</div>
+      <div style={{marginTop:16,padding:'14px 16px',border:'1px solid #BFDBFE',background:'#EFF6FF',borderRadius:12,fontSize:13,color:'#1E3A8A',lineHeight:1.55}}>Os jogos de um mesmo dia liberam juntos 48 horas antes do primeiro jogo desse dia. Depois disso, você pode salvar ou atualizar cada placar até a bola rolar.</div>
       <div style={{display:'flex',justifyContent:'center',gap:18,marginTop:28,fontSize:13,color:T.txt3}}><button style={{border:'none',background:'transparent',color:T.txt3,cursor:'pointer'}} onClick={()=>setTab('ranking')}>Ver Ranking</button><span>·</span><button style={{border:'none',background:'transparent',color:T.txt3,cursor:'pointer'}} onClick={()=>setTab('rules')}>Regulamento</button></div>
     </div>
   );
 
   const TabMatches=(
     <div style={{padding:'28px 14px 72px',maxWidth:1120,margin:'0 auto'}}>
-      <div style={{marginBottom:22}}><div style={{fontSize:13,color:T.txt3,marginBottom:8}}>Seus palpites</div><h1 style={{fontSize:30,lineHeight:1.1,color:T.txt1,letterSpacing:-.8,marginBottom:8}}>{matchView==='groups'?'Palpites - Fase de Grupos':'Palpites - Eliminatórias'}</h1><p style={{fontSize:15,color:T.txt2,lineHeight:1.6,maxWidth:760}}>Cada jogo libera para palpite 2 dias antes do início e fecha quando a bola rolar.</p></div>
-      <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'16px',boxShadow:shadow,marginBottom:18}}><div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:14}}><StatTile value={matchView==='groups'?savedGroupPredCount:savedKnockoutPredCount} label="salvos" color={T.accent} bg={T.accentLt}/><StatTile value={matchView==='groups'?Math.max(0,groupMatches.length-savedGroupPredCount):Math.max(0,knockoutMatches.length-savedKnockoutPredCount)} label="faltando" color={T.half} bg={T.halfBg}/><StatTile value={matches.filter(m=>canEditMatch(m)&&(matchView==='groups'?m.ph==='Grupos':m.ph!=='Grupos')).length} label="abertos agora" color="#1D4ED8" bg="#DBEAFE"/><StatTile value="48h" label="janela" color={T.txt1} bg={T.bg}/></div><div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}><button className="pill" style={{padding:'10px 14px',borderRadius:999,border:'1px solid '+(!onlyMissing?T.accent:T.border),fontSize:12,fontWeight:900,background:!onlyMissing?T.accentLt:T.card,color:!onlyMissing?T.accent:T.txt2,cursor:'pointer'}} onClick={()=>setOnlyMissing(false)}>Todos os jogos</button><button className="pill" style={{padding:'10px 14px',borderRadius:999,border:'1px solid '+(onlyMissing?T.half:T.border),fontSize:12,fontWeight:900,background:onlyMissing?T.halfBg:T.card,color:onlyMissing?T.half:T.txt2,cursor:'pointer'}} onClick={()=>setOnlyMissing(true)}>Só faltando</button></div></div>
-      <div style={{display:'flex',alignItems:'center',borderBottom:'1px solid '+T.border,marginBottom:18,gap:18}}><button style={{border:'none',borderBottom:'2px solid '+(matchView==='groups'?T.accent:'transparent'),background:'transparent',padding:'0 0 12px',fontSize:14,fontWeight:matchView==='groups'?900:800,color:matchView==='groups'?T.accent:T.txt3,cursor:'pointer'}} onClick={()=>setMatchView('groups')}>Fase de Grupos</button><button style={{border:'none',borderBottom:'2px solid '+(matchView==='knockout'?T.accent:'transparent'),background:'transparent',padding:'0 0 12px',fontSize:14,fontWeight:matchView==='knockout'?900:800,color:matchView==='knockout'?T.accent:T.txt3,cursor:'pointer'}} onClick={()=>{setMatchView('knockout');setOnlyMissing(false);}}>Eliminatórias</button></div>
+      <div style={{marginBottom:22}}><div style={{fontSize:13,color:T.txt3,marginBottom:8}}>Seus palpites</div><h1 style={{fontSize:30,lineHeight:1.1,color:T.txt1,letterSpacing:-.8,marginBottom:8}}>{matchView==='groups'?'Palpites - Fase de Grupos':matchView==='dayPicks'?'Palpites do Dia':'Palpites - Eliminatorias'}</h1><p style={{fontSize:15,color:T.txt2,lineHeight:1.6,maxWidth:760}}>Os jogos de cada dia liberam juntos 2 dias antes do primeiro jogo do dia, e fecham quando cada partida começa.</p></div>
+      <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'16px',boxShadow:shadow,marginBottom:18}}><div className="info-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:14}}><StatTile value={matchView==='groups'?savedGroupPredCount:savedKnockoutPredCount} label="salvos" color={T.accent} bg={T.accentLt}/><StatTile value={matchView==='groups'?Math.max(0,groupMatches.length-savedGroupPredCount):Math.max(0,knockoutMatches.length-savedKnockoutPredCount)} label="faltando" color={T.half} bg={T.halfBg}/><StatTile value={matchView==='groups'?groupAvailablePendingCount:knockoutAvailablePendingCount} label="para palpitar" color="#1D4ED8" bg="#DBEAFE"/><StatTile value="48h" label="janela" color={T.txt1} bg={T.bg}/></div><div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}><button className="pill" style={{padding:'10px 14px',borderRadius:999,border:'1px solid '+(!onlyMissing?T.accent:T.border),fontSize:12,fontWeight:900,background:!onlyMissing?T.accentLt:T.card,color:!onlyMissing?T.accent:T.txt2,cursor:'pointer'}} onClick={()=>setOnlyMissing(false)}>Todos os jogos</button><button className="pill" style={{padding:'10px 14px',borderRadius:999,border:'1px solid '+(onlyMissing?T.half:T.border),fontSize:12,fontWeight:900,background:onlyMissing?T.halfBg:T.card,color:onlyMissing?T.half:T.txt2,cursor:'pointer'}} onClick={()=>setOnlyMissing(true)}>Dispon&iacute;veis para palpitar</button></div></div>
+      <div style={{display:'flex',alignItems:'center',borderBottom:'1px solid '+T.border,marginBottom:18,gap:18,flexWrap:'wrap'}}><button style={{border:'none',borderBottom:'2px solid '+(matchView==='groups'?T.accent:'transparent'),background:'transparent',padding:'0 0 12px',fontSize:14,fontWeight:matchView==='groups'?900:800,color:matchView==='groups'?T.accent:T.txt3,cursor:'pointer'}} onClick={()=>setMatchView('groups')}>Fase de Grupos</button><button style={{border:'none',borderBottom:'2px solid '+(matchView==='knockout'?T.accent:'transparent'),background:'transparent',padding:'0 0 12px',fontSize:14,fontWeight:matchView==='knockout'?900:800,color:matchView==='knockout'?T.accent:T.txt3,cursor:'pointer'}} onClick={()=>{setMatchView('knockout');setOnlyMissing(false);}}>Eliminatórias</button><button style={{border:'none',borderBottom:'2px solid '+(matchView==='dayPicks'?T.accent:'transparent'),background:'transparent',padding:'0 0 12px',fontSize:14,fontWeight:matchView==='dayPicks'?900:800,color:matchView==='dayPicks'?T.accent:T.txt3,cursor:'pointer'}} onClick={()=>{setMatchView('dayPicks');setOnlyMissing(false);}}>Palpites do Dia</button></div>
       {matchView==='groups'&&<><SectionTitle title="Fase de grupos por dia" text="Abra o dia da Copa e preencha os jogos que já estiverem liberados."/>{groupPredictionDayGroups.map((group,idx)=><details key={group.key} open={idx===0||group.matches.some(m=>canEditMatch(m))} style={{marginBottom:10}}><summary style={{listStyle:'none',cursor:'pointer',background:T.card,border:'1px solid '+T.border,borderRadius:12,padding:'12px 14px',boxShadow:shadow,display:'flex',alignItems:'center',gap:12}}><div style={{flex:1}}><div style={{fontSize:13,fontWeight:800,color:T.txt1,textTransform:'capitalize'}}>{group.label}</div><div style={{fontSize:11,color:T.txt3,marginTop:2}}>{group.matches.length} jogo(s) · {group.matches.filter(m=>canEditMatch(m)).length} aberto(s)</div></div><span style={{fontSize:15,color:T.txt3}}>⌄</span></summary><div style={{paddingTop:10}}>{group.matches.map(m=><MatchCard key={m.id} m={m}/>)}</div></details>)}</>}
       {matchView==='knockout'&&<>{knockoutPredictionDayGroups.length?<><SectionTitle title="Eliminatórias" text="Os confrontos continuam sendo palpites de placar, também liberados 2 dias antes."/>{knockoutPredictionDayGroups.map((group,idx)=><details key={group.key} open={idx===0||group.matches.some(m=>canEditMatch(m))} style={{marginBottom:10}}><summary style={{listStyle:'none',cursor:'pointer',background:T.card,border:'1px solid '+T.border,borderRadius:12,padding:'12px 14px',boxShadow:shadow,display:'flex',alignItems:'center',gap:12}}><div style={{flex:1}}><div style={{fontSize:13,fontWeight:800,color:T.txt1,textTransform:'capitalize'}}>{group.label}</div><div style={{fontSize:11,color:T.txt3,marginTop:2}}>{group.matches.length} jogo(s) · {group.matches.filter(m=>canEditMatch(m)).length} aberto(s)</div></div><span style={{fontSize:15,color:T.txt3}}>⌄</span></summary><div style={{paddingTop:10}}>{group.matches.map(m=><MatchCard key={m.id} m={m}/>)}</div></details>)}</>:<div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'26px',boxShadow:shadow,textAlign:'center',color:T.txt2}}><div style={{fontSize:34,marginBottom:8}}>🏟️</div><div style={{fontSize:15,fontWeight:900,color:T.txt1,marginBottom:4}}>Eliminatórias ainda não cadastradas</div><div style={{fontSize:12,lineHeight:1.55}}>Quando os confrontos do mata-mata forem definidos, eles aparecem aqui.</div></div>}</>}
+      {matchView==='dayPicks'&&<><SectionTitle title="Palpites do Dia" text="Os palpites dos amigos aparecem aqui somente depois que o jogo comeca."/>{startedTodayMatches.length?startedTodayMatches.map(m=><div key={m.id} className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:16,boxShadow:shadow,overflow:'hidden',marginBottom:12}}><div style={{padding:'14px 16px',borderBottom:'1px solid '+T.border,display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}><strong style={{fontSize:15,color:T.txt1,flex:1}}>{fl(m.home)} {displayTeam(m.home)} x {displayTeam(m.away)} {fl(m.away)}</strong><span style={{fontSize:11,fontWeight:900,color:T.accent,background:T.accentLt,borderRadius:999,padding:'5px 9px'}}>liberado</span><span style={{fontSize:11,color:T.txt3}}>{fTime(m.dt)} - {m.venue}</span></div><div style={{padding:'10px 16px'}}>{parts.length?parts.map(uid=>{const pp=(preds[uid]||{})[m.id];return <div key={uid} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderTop:'1px solid '+T.border}}><span style={{flex:1,fontSize:13,fontWeight:900,color:uid===me?T.accent:T.txt1}}>{getName(uid)}{uid===me&&<span style={{fontSize:10,color:T.txt3,fontWeight:600}}> - voce</span>}</span><strong style={{fontSize:15,color:pp&&pp.home!==''?T.txt1:T.txt3}}>{pp&&pp.home!==''?pp.home+'x'+pp.away:'sem palpite'}</strong></div>}):<div style={{fontSize:12,color:T.txt3}}>Nenhum participante registrado.</div>}</div></div>):<div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'26px',boxShadow:shadow,textAlign:'center',color:T.txt2}}><div style={{fontSize:34,marginBottom:8}}>...</div><div style={{fontSize:15,fontWeight:900,color:T.txt1,marginBottom:4}}>Nada liberado ainda</div><div style={{fontSize:12,lineHeight:1.55}}>Os palpites gerais aparecem aqui no dia do jogo, apenas depois que a partida comecar.</div></div>}</>}
       <div style={{height:88}}/>
     </div>
   );
@@ -1519,7 +1568,7 @@ function Bolao(){
         </RuleCard>
         <RuleCard icon="📅" title="Fase de grupos por dia">
           <p>A fase de grupos aparece organizada por <strong>dia de jogo</strong>, para ficar mais fácil acompanhar o que precisa ser preenchido.</p>
-          <p>Use o filtro <strong>Só faltando</strong> para ver apenas partidas sem palpite.</p>
+          <p>Use o filtro <strong>Dispon&iacute;veis para palpitar</strong> para ver apenas jogos que estao abertos agora.</p>
           <p>Mesmo jogos futuros aparecem na lista, mas só liberam dentro da janela de 48 horas.</p>
         </RuleCard>
         <RuleCard icon="⚡" title="Eliminatórias">
@@ -1538,11 +1587,6 @@ function Bolao(){
           <p>Cada pessoa preenche os próprios palpites individualmente.</p>
           <p>O ideal é revelar comparativos só depois que o jogo começar ou quando houver resultado lançado.</p>
           <p>Isso evita cópia de palpite e mantém o bolão justo.</p>
-        </RuleCard>
-        <RuleCard icon="🥇" title="Ranking e desempate">
-          <p>O ranking soma apenas pontos dos jogos cadastrados e com resultado oficial lançado.</p>
-          <p>Em caso de empate, a ordem é: total de pontos, pontos em jogos, placares exatos, vencedores acertados, menos erros e ordem alfabética.</p>
-          <p>Não há pódio, campeão antecipado ou chaveamento nesta versão.</p>
         </RuleCard>
       </div>
       <div style={{height:88}}/>
@@ -1564,11 +1608,16 @@ function Bolao(){
           </div>
           <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
             <SectionTitle title="Adicionar partida" text="Use principalmente para cadastrar jogos das eliminatórias quando os confrontos saírem."/>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))',gap:8,marginBottom:8}}><input className="inp" style={inpSt} placeholder="Time casa" value={newM.home} onChange={e=>setNewM(m=>({...m,home:e.target.value}))}/><input className="inp" style={inpSt} placeholder="Time fora" value={newM.away} onChange={e=>setNewM(m=>({...m,away:e.target.value}))}/><select className="inp" style={inpSt} value={newM.ph} onChange={e=>setNewM(m=>({...m,ph:e.target.value,gr:e.target.value==='Grupos'?m.gr:''}))}><option>Grupos</option><option>32 avos</option><option>16 avos</option><option>Oitavas</option><option>Quartas</option><option>Semis</option><option>3º lugar</option><option>Final</option></select>{newM.ph==='Grupos'&&<select className="inp" style={inpSt} value={newM.gr} onChange={e=>setNewM(m=>({...m,gr:e.target.value}))}>{GROUPS.map(g=><option key={g}>{g}</option>)}</select>}<input className="inp" style={inpSt} type="datetime-local" value={newM.dt} onChange={e=>setNewM(m=>({...m,dt:e.target.value}))}/><input className="inp" style={inpSt} placeholder="Cidade/estádio" value={newM.venue} onChange={e=>setNewM(m=>({...m,venue:e.target.value}))}/></div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))',gap:8,marginBottom:8}}><input className="inp" style={inpSt} placeholder="Time casa" value={newM.home} onChange={e=>setNewM(m=>({...m,home:e.target.value}))}/><input className="inp" style={inpSt} placeholder="Time fora" value={newM.away} onChange={e=>setNewM(m=>({...m,away:e.target.value}))}/><select className="inp" style={inpSt} value={newM.ph} onChange={e=>setNewM(m=>({...m,ph:e.target.value,gr:e.target.value==='Grupos'?m.gr:''}))}><option>Grupos</option><option>32-avos</option><option>Oitavas</option><option>Quartas</option><option>Semis</option><option>3rd Lugar</option><option>Final</option></select>{newM.ph==='Grupos'&&<select className="inp" style={inpSt} value={newM.gr} onChange={e=>setNewM(m=>({...m,gr:e.target.value}))}>{GROUPS.map(g=><option key={g}>{g}</option>)}</select>}<input className="inp" style={inpSt} type="datetime-local" value={newM.dt} onChange={e=>setNewM(m=>({...m,dt:e.target.value}))}/><input className="inp" style={inpSt} placeholder="Cidade/estádio" value={newM.venue} onChange={e=>setNewM(m=>({...m,venue:e.target.value}))}/></div>
             <button className="btn-acc" style={{...btnAcc,width:'100%'}} onClick={addMatch}>Adicionar partida</button>
           </div>
         </div>
         <div style={{display:'flex',flexDirection:'column',gap:14}}>
+
+          <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
+            <SectionTitle title="Editar/remover eliminatorias" text="Confrontos manuais aparecem aqui. Remover tambem apaga palpites daquele jogo."/>
+            {knockoutAdminMatches.length?knockoutAdminMatches.map(m=>{const e=matchEdits[m.id]||{};return <div key={m.id} style={{border:'1px solid '+T.border,borderRadius:14,padding:12,marginBottom:10,background:T.bg}}><div style={{fontSize:11,fontWeight:900,color:T.txt3,marginBottom:8}}>{m.id} - {m.ph}</div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))',gap:8,marginBottom:8}}><input className="inp" style={inpSt} placeholder="Time casa" value={e.home||''} onChange={ev=>setMatchEdits(x=>({...x,[m.id]:{...x[m.id],home:ev.target.value}}))}/><input className="inp" style={inpSt} placeholder="Time fora" value={e.away||''} onChange={ev=>setMatchEdits(x=>({...x,[m.id]:{...x[m.id],away:ev.target.value}}))}/><select className="inp" style={inpSt} value={e.ph||'Oitavas'} onChange={ev=>setMatchEdits(x=>({...x,[m.id]:{...x[m.id],ph:ev.target.value,gr:ev.target.value==='Grupos'?(x[m.id]?.gr||'A'):''}}))}><option>32-avos</option><option>Oitavas</option><option>Quartas</option><option>Semis</option><option>3rd Lugar</option><option>Final</option></select><input className="inp" style={inpSt} type="datetime-local" value={e.dt||''} onChange={ev=>setMatchEdits(x=>({...x,[m.id]:{...x[m.id],dt:ev.target.value}}))}/><input className="inp" style={inpSt} placeholder="Cidade/estadio" value={e.venue||''} onChange={ev=>setMatchEdits(x=>({...x,[m.id]:{...x[m.id],venue:ev.target.value}}))}/></div><div style={{display:'flex',gap:8,justifyContent:'flex-end'}}><button className="pill" style={{padding:'8px 12px',borderRadius:10,border:'1px solid '+T.border,background:T.card,color:T.err,fontSize:11,fontWeight:900,cursor:'pointer'}} onClick={()=>removeMatch(m.id)}>Remover</button><button className="btn-acc" style={{...btnAcc,padding:'8px 12px',fontSize:11}} onClick={()=>updateMatch(m.id)}>Salvar</button></div></div>}):<div style={{fontSize:12,color:T.txt3,lineHeight:1.5}}>Nenhum confronto de eliminatorias cadastrado ainda. Use o bloco acima para adicionar quando os jogos forem definidos.</div>}
+          </div>
           <div className="lux-card" style={{background:T.card,border:'1px solid '+T.border,borderRadius:18,padding:'18px',boxShadow:shadow}}>
             <SectionTitle title="Importar CSV" text="Colunas aceitas: id, home, away, dt, ph, gr, venue."/>
             <input className="inp" style={{...inpSt,marginBottom:8}} type="file" accept=".csv,text/csv" onChange={e=>{const file=e.target.files?.[0]; if(!file) return; const reader=new FileReader(); reader.onload=ev=>importMatchesFromCsvText(String(ev.target?.result||'')); reader.readAsText(file); e.target.value='';}}/>
@@ -1608,6 +1657,7 @@ function Bolao(){
                 <button onClick={()=>{setTab('matches');setMatchView('groups');setShowPalpitesMenu(false);}} style={{width:'100%',border:'none',background:'transparent',padding:'13px 18px',display:'flex',gap:12,alignItems:'center',fontSize:14,color:T.txt1,cursor:'pointer',textAlign:'left'}}>⚽ <span>Fase de Grupos</span></button>
 
                 <button onClick={()=>{setTab('matches');setMatchView('knockout');setShowPalpitesMenu(false);}} style={{width:'100%',border:'none',background:'transparent',padding:'13px 18px',display:'flex',gap:12,alignItems:'center',fontSize:14,color:T.txt1,cursor:'pointer',textAlign:'left'}}>⚡ <span>Eliminatórias</span></button>
+                <button onClick={()=>{setTab('matches');setMatchView('dayPicks');setShowPalpitesMenu(false);}} style={{width:'100%',border:'none',background:'transparent',padding:'13px 18px',display:'flex',gap:12,alignItems:'center',fontSize:14,color:T.txt1,cursor:'pointer',textAlign:'left'}}>{'\u{1F440}'} <span>Palpites do Dia</span></button>
               </div>}
             </div>
             <button onClick={()=>{setTab('ranking');setShowPalpitesMenu(false);}} style={{border:'none',background:'transparent',cursor:'pointer',fontSize:14,color:tab==='ranking'?'#009C3B':'#111827',fontWeight:tab==='ranking'?800:500}}>Ranking</button>
